@@ -30,11 +30,21 @@ type BracketMatchInfo = {
 };
 
 export default function KnockoutBracket() {
-  const { bracket } = useWorldCupStore();
+  const { bracket, knockoutResults } = useWorldCupStore();
   if (!bracket) return <p className="text-center text-muted-foreground py-8">Carregando chaveamento...</p>;
+
+  const hasKnockoutResults = knockoutResults.size > 0;
 
   return (
     <div className="space-y-6">
+      {!hasKnockoutResults && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 text-center">
+          <p className="text-xs text-yellow-600 dark:text-yellow-400">
+            Projeção baseada na classificação atual da fase de grupos. 
+            Os confrontos serão confirmados após o encerramento de todos os grupos.
+          </p>
+        </div>
+      )}
       <div className="lg:hidden space-y-3">
         <BracketListView bracket={bracket} />
       </div>

@@ -96,12 +96,14 @@ function classifyStatus(statusName: string): 'upcoming' | 'live' | 'finished' {
 
 // ── Main GET handler ───────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const isManualRefresh = searchParams.has('_refresh');
     const now = Date.now();
 
-    // Return cached data if still fresh
-    if (cachedScores && now - cacheTimestamp < CACHE_TTL_MS) {
+    // Return cached data if still fresh (unless manual refresh)
+    if (!isManualRefresh && cachedScores && now - cacheTimestamp < CACHE_TTL_MS) {
       return NextResponse.json({
         serverTime: new Date().toISOString(),
         scores: cachedScores,

@@ -17,6 +17,10 @@ interface ESPNMatchScore {
   status: 'upcoming' | 'live' | 'finished';
   minute?: number;
   displayClock?: string;
+  espnDate?: string;
+  espnTime?: string;
+  espnVenue?: string;
+  espnCity?: string;
 }
 
 interface WorldCupState {
@@ -142,6 +146,11 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           homeScore: s.homeScore,
           awayScore: s.awayScore,
           status: s.status,
+          // Update date/time/venue from ESPN when available
+          ...(s.espnDate && { date: s.espnDate }),
+          ...(s.espnTime && { time: s.espnTime }),
+          ...(s.espnVenue && { venue: s.espnVenue }),
+          ...(s.espnCity && { city: s.espnCity }),
         };
       });
       const newLiveMatches: Record<string, number> = {};
@@ -158,7 +167,8 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     refreshNow: async () => {
       set({ isRefreshing: true });
       try {
-        const url = `/api/live-scores?XTransformPort=3000`;
+        // Bypass server cache with _refresh parameter
+        const url = `/api/live-scores?XTransformPort=3000&_refresh=${Date.now()}`;
         const res = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
