@@ -1,24 +1,19 @@
 ---
-Task ID: 1
+Task ID: 2
 Agent: main
-Task: Build complete FIFA World Cup 2026 webapp
+Task: Fill all 48 teams with real data + add auto score simulation
 
 Work Log:
-- Created full data layer: 48 teams (12 groups), 72 group matches, bracket config for R32→Final
-- Implemented standings calculation with full tiebreaker logic (points > GD > GF > H2H > fair play)
-- Implemented third-place ranking system with 8 qualifying teams across pool slots
-- Built Zustand store with reactive state: score changes propagate to standings, thirds, and bracket
-- Built Calendar component with filters (group, team, round), timezone conversion, venue display
-- Built GroupTables component with 12 group tables + third-place ranking section
-- Built KnockoutBracket with visual bracket (desktop) and linear list (mobile)
-- Built CrossoverPredictor showing possible paths for 1st/2nd/3rd place finishes
-- Built ScoreInput dialog for manual score entry (group + knockout matches)
-- Added dark mode, responsive mobile-first layout, country flags via flagcdn
-- Fixed bracket resolver to only show slot labels until groups have matches played
-- All lint checks pass, no runtime errors
+- Searched FIFA.com, Wikipedia and NBC for official 2026 World Cup draw results
+- Read and parsed official draw pages to extract all 12 groups
+- Updated TEAMS and GROUPS in worldcup.ts with all 48 real teams
+- Groups confirmed: A(México, África do Sul, Coreia do Sul, Tchéquia), B(Canadá, Bósnia, Catar, Suíça), C(Brasil, Marrocos, Escócia, Haiti), D(EUA, Paraguai, Austrália, Turquia), E(Alemanha, Curaçao, Costa do Marfim, Equador), F(Holanda, Japão, Suécia, Tunísia), G(Bélgica, Egito, Irã, Nova Zelândia), H(Espanha, Cabo Verde, Arábia Saudita, Uruguai), I(França, Senegal, Iraque, Noruega), J(Argentina, Argélia, Áustria, Jordânia), K(Portugal, Jamaica, Uzbequistão, Colômbia), L(Inglaterra, Croácia, Gana, Panamá)
+- Created /api/simulate API route that generates realistic random scores
+- Added simulateRound(1/2/3), simulateAll() and clearAll() to Zustand store
+- Added simulation buttons (R1, R2, R3, Simular Todos, Limpar) + dark mode toggle to Navigation
+- Tested: all 48 teams showing with flags, simulation fills scores correctly and standings update
 
 Stage Summary:
-- Deliverable: Fully functional webapp at / route
-- Key files: src/data/worldcup.ts (data), src/lib/standings.ts, src/lib/thirdPlaceRanking.ts, src/lib/bracketResolver.ts (logic), src/store/worldCupStore.ts (state), src/components/worldcup/* (UI)
-- Data structure ready for API plug-in (knockoutResults Map + match scores)
-- TBD placeholders used for unknown teams per user requirement
+- All TBD placeholders replaced with real 2026 WC teams
+- Simulation generates realistic scores (draws ~25%, home/away wins distributed)
+- Lint passes, browser verified, no runtime errors

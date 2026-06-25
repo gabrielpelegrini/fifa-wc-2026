@@ -1,92 +1,92 @@
 import { Team, GroupDef } from './types';
 
 export const TEAMS: Record<string, Team> = {
-  // ===== GROUP A =====
-  mexico: { id: 'mexico', code: 'mx', name: 'México', flag: 'mx' },
-  a2: { id: 'a2', code: '??', name: 'A2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  a3: { id: 'a3', code: '??', name: 'A3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  a4: { id: 'a4', code: '??', name: 'A4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP A: México, África do Sul, Coreia do Sul, Tchéquia =====
+  mexico:       { id: 'mexico',       code: 'mx', name: 'México',           flag: 'mx' },
+  south_africa: { id: 'south_africa', code: 'za', name: 'África do Sul',    flag: 'za' },
+  south_korea:  { id: 'south_korea',  code: 'kr', name: 'Coreia do Sul',    flag: 'kr' },
+  czechia:      { id: 'czechia',      code: 'cz', name: 'Tchéquia',         flag: 'cz' },
 
-  // ===== GROUP B =====
-  canada: { id: 'canada', code: 'ca', name: 'Canadá', flag: 'ca' },
-  b2: { id: 'b2', code: '??', name: 'B2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  b3: { id: 'b3', code: '??', name: 'B3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  b4: { id: 'b4', code: '??', name: 'B4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP B: Canadá, Bósnia, Catar, Suíça =====
+  canada:       { id: 'canada',       code: 'ca', name: 'Canadá',           flag: 'ca' },
+  bosnia:       { id: 'bosnia',       code: 'ba', name: 'Bósnia',           flag: 'ba' },
+  qatar:        { id: 'qatar',        code: 'qa', name: 'Catar',            flag: 'qa' },
+  switzerland:  { id: 'switzerland',  code: 'ch', name: 'Suíça',           flag: 'ch' },
 
-  // ===== GROUP C =====
-  brazil: { id: 'brazil', code: 'br', name: 'Brasil', flag: 'br' },
-  morocco: { id: 'morocco', code: 'ma', name: 'Marrocos', flag: 'ma' },
-  scotland: { id: 'scotland', code: 'gb-sct', name: 'Escócia', flag: 'gb-sct' },
-  haiti: { id: 'haiti', code: 'ht', name: 'Haiti', flag: 'ht' },
+  // ===== GROUP C: Brasil, Marrocos, Escócia, Haiti =====
+  brazil:       { id: 'brazil',       code: 'br', name: 'Brasil',           flag: 'br' },
+  morocco:      { id: 'morocco',      code: 'ma', name: 'Marrocos',         flag: 'ma' },
+  scotland:     { id: 'scotland',     code: 'gb-sct', name: 'Escócia',     flag: 'gb-sct' },
+  haiti:        { id: 'haiti',        code: 'ht', name: 'Haiti',            flag: 'ht' },
 
-  // ===== GROUP D =====
-  usa: { id: 'usa', code: 'us', name: 'Estados Unidos', flag: 'us' },
-  d2: { id: 'd2', code: '??', name: 'D2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  d3: { id: 'd3', code: '??', name: 'D3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  d4: { id: 'd4', code: '??', name: 'D4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP D: EUA, Paraguai, Austrália, Turquia =====
+  usa:          { id: 'usa',          code: 'us', name: 'Estados Unidos',   flag: 'us' },
+  paraguay:     { id: 'paraguay',     code: 'py', name: 'Paraguai',         flag: 'py' },
+  australia:    { id: 'australia',    code: 'au', name: 'Austrália',        flag: 'au' },
+  turkey:       { id: 'turkey',       code: 'tr', name: 'Turquia',          flag: 'tr' },
 
-  // ===== GROUP E =====
-  e1: { id: 'e1', code: '??', name: 'E1 (TBD)', flag: 'tbd', isPlaceholder: true },
-  e2: { id: 'e2', code: '??', name: 'E2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  e3: { id: 'e3', code: '??', name: 'E3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  e4: { id: 'e4', code: '??', name: 'E4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP E: Alemanha, Curaçao, Costa do Marfim, Equador =====
+  germany:      { id: 'germany',      code: 'de', name: 'Alemanha',         flag: 'de' },
+  curacao:      { id: 'curacao',      code: 'cw', name: 'Curaçao',          flag: 'cw' },
+  ivory_coast:  { id: 'ivory_coast',  code: 'ci', name: 'Costa do Marfim',  flag: 'ci' },
+  ecuador:      { id: 'ecuador',      code: 'ec', name: 'Equador',          flag: 'ec' },
 
-  // ===== GROUP F =====
-  f1: { id: 'f1', code: '??', name: 'F1 (TBD)', flag: 'tbd', isPlaceholder: true },
-  f2: { id: 'f2', code: '??', name: 'F2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  f3: { id: 'f3', code: '??', name: 'F3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  f4: { id: 'f4', code: '??', name: 'F4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP F: Holanda, Japão, Suécia, Tunísia =====
+  netherlands:  { id: 'netherlands',  code: 'nl', name: 'Holanda',          flag: 'nl' },
+  japan:        { id: 'japan',        code: 'jp', name: 'Japão',            flag: 'jp' },
+  sweden:       { id: 'sweden',       code: 'se', name: 'Suécia',           flag: 'se' },
+  tunisia:      { id: 'tunisia',      code: 'tn', name: 'Tunísia',          flag: 'tn' },
 
-  // ===== GROUP G =====
-  g1: { id: 'g1', code: '??', name: 'G1 (TBD)', flag: 'tbd', isPlaceholder: true },
-  g2: { id: 'g2', code: '??', name: 'G2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  g3: { id: 'g3', code: '??', name: 'G3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  g4: { id: 'g4', code: '??', name: 'G4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP G: Bélgica, Egito, Irã, Nova Zelândia =====
+  belgium:      { id: 'belgium',      code: 'be', name: 'Bélgica',          flag: 'be' },
+  egypt:        { id: 'egypt',        code: 'eg', name: 'Egito',            flag: 'eg' },
+  iran:         { id: 'iran',         code: 'ir', name: 'Irã',              flag: 'ir' },
+  new_zealand:  { id: 'new_zealand',  code: 'nz', name: 'Nova Zelândia',     flag: 'nz' },
 
-  // ===== GROUP H =====
-  h1: { id: 'h1', code: '??', name: 'H1 (TBD)', flag: 'tbd', isPlaceholder: true },
-  h2: { id: 'h2', code: '??', name: 'H2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  h3: { id: 'h3', code: '??', name: 'H3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  h4: { id: 'h4', code: '??', name: 'H4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP H: Espanha, Cabo Verde, Arábia Saudita, Uruguai =====
+  spain:        { id: 'spain',        code: 'es', name: 'Espanha',          flag: 'es' },
+  cape_verde:   { id: 'cape_verde',   code: 'cv', name: 'Cabo Verde',       flag: 'cv' },
+  saudi_arabia: { id: 'saudi_arabia', code: 'sa', name: 'Arábia Saudita',  flag: 'sa' },
+  uruguay:      { id: 'uruguay',      code: 'uy', name: 'Uruguai',          flag: 'uy' },
 
-  // ===== GROUP I =====
-  i1: { id: 'i1', code: '??', name: 'I1 (TBD)', flag: 'tbd', isPlaceholder: true },
-  i2: { id: 'i2', code: '??', name: 'I2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  i3: { id: 'i3', code: '??', name: 'I3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  i4: { id: 'i4', code: '??', name: 'I4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP I: França, Senegal, Iraque, Noruega =====
+  france:       { id: 'france',       code: 'fr', name: 'França',           flag: 'fr' },
+  senegal:      { id: 'senegal',      code: 'sn', name: 'Senegal',          flag: 'sn' },
+  iraq:         { id: 'iraq',         code: 'iq', name: 'Iraque',           flag: 'iq' },
+  norway:       { id: 'norway',       code: 'no', name: 'Noruega',          flag: 'no' },
 
-  // ===== GROUP J =====
-  j1: { id: 'j1', code: '??', name: 'J1 (TBD)', flag: 'tbd', isPlaceholder: true },
-  j2: { id: 'j2', code: '??', name: 'J2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  j3: { id: 'j3', code: '??', name: 'J3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  j4: { id: 'j4', code: '??', name: 'J4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP J: Argentina, Argélia, Áustria, Jordânia =====
+  argentina:    { id: 'argentina',    code: 'ar', name: 'Argentina',         flag: 'ar' },
+  algeria:      { id: 'algeria',      code: 'dz', name: 'Argélia',          flag: 'dz' },
+  austria:      { id: 'austria',      code: 'at', name: 'Áustria',          flag: 'at' },
+  jordan:       { id: 'jordan',       code: 'jo', name: 'Jordânia',          flag: 'jo' },
 
-  // ===== GROUP K =====
-  k1: { id: 'k1', code: '??', name: 'K1 (TBD)', flag: 'tbd', isPlaceholder: true },
-  k2: { id: 'k2', code: '??', name: 'K2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  k3: { id: 'k3', code: '??', name: 'K3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  k4: { id: 'k4', code: '??', name: 'K4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP K: Portugal, Jamaica, Uzbequistão, Colômbia =====
+  portugal:     { id: 'portugal',     code: 'pt', name: 'Portugal',         flag: 'pt' },
+  jamaica:      { id: 'jamaica',      code: 'jm', name: 'Jamaica',          flag: 'jm' },
+  uzbekistan:   { id: 'uzbekistan',   code: 'uz', name: 'Uzbequistão',      flag: 'uz' },
+  colombia:     { id: 'colombia',     code: 'co', name: 'Colômbia',         flag: 'co' },
 
-  // ===== GROUP L =====
-  l1: { id: 'l1', code: '??', name: 'L1 (TBD)', flag: 'tbd', isPlaceholder: true },
-  l2: { id: 'l2', code: '??', name: 'L2 (TBD)', flag: 'tbd', isPlaceholder: true },
-  l3: { id: 'l3', code: '??', name: 'L3 (TBD)', flag: 'tbd', isPlaceholder: true },
-  l4: { id: 'l4', code: '??', name: 'L4 (TBD)', flag: 'tbd', isPlaceholder: true },
+  // ===== GROUP L: Inglaterra, Croácia, Gana, Panamá =====
+  england:      { id: 'england',      code: 'gb-eng', name: 'Inglaterra',      flag: 'gb-eng' },
+  croatia:      { id: 'croatia',      code: 'hr', name: 'Croácia',          flag: 'hr' },
+  ghana:        { id: 'ghana',        code: 'gh', name: 'Gana',             flag: 'gh' },
+  panama:       { id: 'panama',       code: 'pa', name: 'Panamá',           flag: 'pa' },
 };
 
 export const GROUPS: GroupDef[] = [
-  { id: 'A', teams: ['mexico', 'a2', 'a3', 'a4'] },
-  { id: 'B', teams: ['canada', 'b2', 'b3', 'b4'] },
+  { id: 'A', teams: ['mexico', 'south_africa', 'south_korea', 'czechia'] },
+  { id: 'B', teams: ['canada', 'bosnia', 'qatar', 'switzerland'] },
   { id: 'C', teams: ['brazil', 'morocco', 'scotland', 'haiti'] },
-  { id: 'D', teams: ['usa', 'd2', 'd3', 'd4'] },
-  { id: 'E', teams: ['e1', 'e2', 'e3', 'e4'] },
-  { id: 'F', teams: ['f1', 'f2', 'f3', 'f4'] },
-  { id: 'G', teams: ['g1', 'g2', 'g3', 'g4'] },
-  { id: 'H', teams: ['h1', 'h2', 'h3', 'h4'] },
-  { id: 'I', teams: ['i1', 'i2', 'i3', 'i4'] },
-  { id: 'J', teams: ['j1', 'j2', 'j3', 'j4'] },
-  { id: 'K', teams: ['k1', 'k2', 'k3', 'k4'] },
-  { id: 'L', teams: ['l1', 'l2', 'l3', 'l4'] },
+  { id: 'D', teams: ['usa', 'paraguay', 'australia', 'turkey'] },
+  { id: 'E', teams: ['germany', 'curacao', 'ivory_coast', 'ecuador'] },
+  { id: 'F', teams: ['netherlands', 'japan', 'sweden', 'tunisia'] },
+  { id: 'G', teams: ['belgium', 'egypt', 'iran', 'new_zealand'] },
+  { id: 'H', teams: ['spain', 'cape_verde', 'saudi_arabia', 'uruguay'] },
+  { id: 'I', teams: ['france', 'senegal', 'iraq', 'norway'] },
+  { id: 'J', teams: ['argentina', 'algeria', 'austria', 'jordan'] },
+  { id: 'K', teams: ['portugal', 'jamaica', 'uzbekistan', 'colombia'] },
+  { id: 'L', teams: ['england', 'croatia', 'ghana', 'panama'] },
 ];
 
 export const GROUP_MAP = Object.fromEntries(GROUPS.map(g => [g.id, g]));

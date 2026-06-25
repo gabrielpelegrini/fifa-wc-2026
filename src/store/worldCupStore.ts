@@ -41,6 +41,10 @@ interface WorldCupState {
   setFilterRound: (r: string) => void;
   setEditingMatch: (id: string | null) => void;
   recalculate: () => void;
+  simulateRound: (round: number) => Promise<void>;
+  simulateAll: () => Promise<void>;
+  clearAll: () => void;
+  isSimulating: boolean;
 }
 
 function deepCloneMatches(): MatchDef[] {
@@ -105,5 +109,50 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       const computed = computeAll(matches, knockoutResults);
       set(computed);
     },
+
+    simulateRound: async (round) => {
+      set({ isSimulating: true });
+      try {
+        const res = await fetch('/api/simulate?XTransformPort=3000', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ round }),
+        });
+        const { scores } = await res.json();
+        const newMatches = get().matches.map(m =>
+          scores[m.id] ? { ...m, homeScore: scores[m.id].home, awayScore: scores[m.id].away, status: 'finished' as const } : m
+        );
+        const computed = computeAll(newMatches, get().knockoutResults);
+        set({ matches: newMatches, ...computed });
+      } catch { /* silently fail */ }
+      set({ isSimulating: false });
+    },
+
+    simulateAll: async () => {
+      set({ isSimulating: true });
+      try {
+        const res = await fetch('/api/simulate?XTransformPort=3000', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ all: true }),
+        });
+        const { scores } = await res.json();
+        const newMatches = get().matches.map(m =>
+          scores[m.id] ? { ...m, homeScore: scores[m.id].home, awayScore: scores[m.id].away, status: 'finished' as const } : m
+        );
+        const computed = computeAll(newMatches, get().knockoutResults);
+        set({ matches: newMatches, ...computed });
+      } catch { /* silently fail */ }
+      set({ isSimulating: false });
+    },
+
+    clearAll: () => {
+      const fresh = deepCloneMatches();
+      const freshKR = new Map<string, KnockoutResult>();
+      const computed = computeAll(fresh, freshKR);
+      set({ matches: fresh, knockoutResults: freshKR, ...computed });
+    },
+
+    isSimulating: false,
   };
 });

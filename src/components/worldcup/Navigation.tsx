@@ -2,7 +2,7 @@
 
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { cn } from '@/lib/utils';
-import { Calendar, Trophy, GitBranch, ArrowLeftRight, Moon, Sun } from 'lucide-react';
+import { Calendar, Trophy, GitBranch, ArrowLeftRight, Moon, Sun, Play, RotateCcw, Zap } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 const TABS = [
@@ -13,7 +13,7 @@ const TABS = [
 ];
 
 export default function Navigation() {
-  const { activeTab, setActiveTab, timezone, setTimezone } = useWorldCupStore();
+  const { activeTab, setActiveTab, timezone, setTimezone, simulateRound, simulateAll, clearAll, isSimulating } = useWorldCupStore();
   const { theme, setTheme, resolvedTheme } = useTheme();
 
   return (
@@ -28,14 +28,60 @@ export default function Navigation() {
               <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">Canadá · México · EUA</p>
             </div>
           </div>
-          <button
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="rounded-md p-2 hover:bg-accent transition-colors"
-            aria-label="Alternar tema"
-          >
-            <Sun className="h-4 w-4 dark:hidden" />
-            <Moon className="h-4 w-4 hidden dark:block" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => simulateRound(1)}
+              disabled={isSimulating}
+              className="rounded-md p-1.5 hover:bg-accent transition-colors text-xs font-medium hidden sm:flex items-center gap-1"
+              title="Simular 1ª rodada"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">R1</span>
+            </button>
+            <button
+              onClick={() => simulateRound(2)}
+              disabled={isSimulating}
+              className="rounded-md p-1.5 hover:bg-accent transition-colors text-xs font-medium hidden sm:flex items-center gap-1"
+              title="Simular 2ª rodada"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">R2</span>
+            </button>
+            <button
+              onClick={() => simulateRound(3)}
+              disabled={isSimulating}
+              className="rounded-md p-1.5 hover:bg-accent transition-colors text-xs font-medium hidden sm:flex items-center gap-1"
+              title="Simular 3ª rodada"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">R3</span>
+            </button>
+            <button
+              onClick={() => simulateAll()}
+              disabled={isSimulating}
+              className="rounded-md p-1.5 hover:bg-accent transition-colors text-xs font-medium flex items-center gap-1"
+              title="Simular todos os jogos da fase de grupos"
+            >
+              <Play className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Simular</span>
+            </button>
+            <button
+              onClick={() => clearAll()}
+              disabled={isSimulating}
+              className="rounded-md p-1.5 hover:bg-accent transition-colors"
+              title="Limpar todos os placares"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              className="rounded-md p-1.5 hover:bg-accent transition-colors"
+              aria-label="Alternar tema"
+            >
+              <Sun className="h-3.5 w-3.5 dark:hidden" />
+              <Moon className="h-3.5 w-3.5 hidden dark:block" />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
