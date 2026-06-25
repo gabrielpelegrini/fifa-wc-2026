@@ -4,38 +4,10 @@ import { useMemo } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { TEAMS, GROUPS } from '@/data/worldcup';
 import { getTeamName } from '@/lib/standings';
+import { formatTime, formatDate } from '@/lib/dateUtils';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
 import { Clock, Filter } from 'lucide-react';
-
-function formatTime(utcTime: string, timezone: string): string {
-  try {
-    const [h, m] = utcTime.split(':').map(Number);
-    const date = new Date(Date.UTC(2026, 0, 1, h, m));
-    return date.toLocaleTimeString('pt-BR', {
-      timeZone: timezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  } catch {
-    return utcTime;
-  }
-}
-
-function formatDate(isoDate: string, timezone: string): string {
-  try {
-    const date = new Date(isoDate + 'T12:00:00Z');
-    return date.toLocaleDateString('pt-BR', {
-      timeZone: timezone,
-      weekday: 'short',
-      day: '2-digit',
-      month: 'short',
-    });
-  } catch {
-    return isoDate;
-  }
-}
 
 export default function Calendar() {
   const {
@@ -47,10 +19,7 @@ export default function Calendar() {
     setFilterGroup,
     setFilterTeam,
     setFilterRound,
-    setEditingMatch,
     liveMatches,
-    lastPollTime,
-    autoUpdate,
   } = useWorldCupStore();
 
   const filteredMatches = useMemo(() => {
@@ -145,7 +114,6 @@ export default function Calendar() {
                 <MatchRow
                   key={m.id}
                   group={m.group || ''}
-                  round={m.round ?? 1}
                   homeTeam={m.homeTeam}
                   awayTeam={m.awayTeam}
                   homeScore={m.homeScore ?? null}
@@ -157,7 +125,6 @@ export default function Calendar() {
                   city={m.city}
                   country={m.country}
                   timezone={timezone}
-                  onClick={() => setEditingMatch(m.id)}
                 />
               ))}
             </div>
@@ -172,12 +139,11 @@ export default function Calendar() {
 }
 
 function MatchRow({
-  group, round, homeTeam, awayTeam,
+  group, homeTeam, awayTeam,
   homeScore, awayScore, status, liveMinute, time, venue, city, country,
-  timezone, onClick
+  timezone,
 }: {
   group: string;
-  round: number;
   homeTeam: string;
   awayTeam: string;
   homeScore: number | null;
@@ -189,23 +155,19 @@ function MatchRow({
   city: string;
   country: string;
   timezone: string;
-  onClick: () => void;
 }) {
   const isLive = status === 'live';
   const isFinished = status === 'finished' || (homeScore !== null && awayScore !== null && !isLive);
-  const isPlaceholderMatch = TEAMS[homeTeam]?.isPlaceholder || TEAMS[awayTeam]?.isPlaceholder;
 
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        'w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border text-left transition-colors',
+        'flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border transition-colors',
         isLive
-          ? 'bg-red-950/30 hover:bg-red-900/30 border-red-500/50'
+          ? 'bg-red-950/30 border-red-500/50'
           : isFinished
-            ? 'bg-card hover:bg-accent/50 border-border/50'
-            : 'bg-card hover:bg-accent border-border',
-        isPlaceholderMatch && 'opacity-70'
+            ? 'bg-card border-border/50'
+            : 'bg-card border-border'
       )}
     >
       {/* Group badge */}
@@ -257,6 +219,6 @@ function MatchRow({
         <span className="truncate">{venue}</span>
         <span className="truncate">{city}, {country}</span>
       </div>
-    </button>
+    </div>
   );
 }

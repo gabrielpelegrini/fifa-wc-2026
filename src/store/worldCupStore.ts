@@ -11,32 +11,22 @@ interface KnockoutResult {
 }
 
 interface WorldCupState {
-  // All group matches (mutable copies with scores)
   matches: MatchDef[];
-  // Knockout round results
   knockoutResults: Map<string, KnockoutResult>;
-  // Selected timezone
   timezone: string;
-  // Active tab
   activeTab: string;
-  // Calendar filters
   filterGroup: string;
   filterTeam: string;
   filterRound: string;
-  // Edit dialog
-  editingMatch: string | null;
 
-  // Computed
   allStandings: Map<string, TeamStanding[]>;
   thirdPlaceRanking: ThirdPlaceEntry[];
   bracket: ReturnType<typeof resolveBracket> | null;
 
-  // Auto-update (live scores)
-  autoUpdate: boolean;
   lastPollTime: string | null;
-  liveMatches: Record<string, number>; // matchId -> minute
+  liveMatches: Record<string, number>;
+  isRefreshing: boolean;
 
-  // Actions
   setScore: (matchId: string, home: number | null, away: number | null) => void;
   setScoreLive: (matchId: string, home: number, away: number, minute: number) => void;
   setKnockoutScore: (matchId: string, home: number, away: number) => void;
@@ -45,15 +35,10 @@ interface WorldCupState {
   setFilterGroup: (g: string) => void;
   setFilterTeam: (t: string) => void;
   setFilterRound: (r: string) => void;
-  setEditingMatch: (id: string | null) => void;
   recalculate: () => void;
-  simulateRound: (round: number) => Promise<void>;
-  simulateAll: () => Promise<void>;
-  clearAll: () => void;
-  isSimulating: boolean;
-  setAutoUpdate: (on: boolean) => void;
   setLastPollTime: (t: string | null) => void;
   setLiveMatches: (m: Record<string, number>) => void;
+  refreshNow: () => Promise<void>;
 }
 
 function deepCloneMatches(): MatchDef[] {
@@ -80,22 +65,19 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     matches: initialMatches,
     knockoutResults: initialKR,
     timezone: 'America/Sao_Paulo',
-    activeTab: 'calendar',
+    activeTab: 'live',
     filterGroup: '',
     filterTeam: '',
     filterRound: '',
-    editingMatch: null,
 
     allStandings: initial.allStandings,
     thirdPlaceRanking: initial.thirdPlaceRanking,
     bracket: initial.bracket,
 
-    // Auto-update state
-    autoUpdate: false,
     lastPollTime: null,
     liveMatches: {},
+    isRefreshing: false,
 
-    setAutoUpdate: (on: boolean) => set({ autoUpdate: on }),
     setLastPollTime: (t: string | null) => set({ lastPollTime: t }),
     setLiveMatches: (m: Record<string, number>) => set({ liveMatches: m }),
 
@@ -134,7 +116,6 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     setFilterGroup: (g) => set({ filterGroup: g }),
     setFilterTeam: (t) => set({ filterTeam: t }),
     setFilterRound: (r) => set({ filterRound: r }),
-    setEditingMatch: (id) => set({ editingMatch: id }),
 
     recalculate: () => {
       const { matches, knockoutResults } = get();
@@ -142,49 +123,31 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       set(computed);
     },
 
-    simulateRound: async (round) => {
-      set({ isSimulating: true });
+    refreshNow: async () => {
+      set({ isRefreshing: true });
       try {
-        const res = await fetch('/api/simulate?XTransformPort=3000', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ round }),
-        });
-        const { scores } = await res.json();
-        const newMatches = get().matches.map(m =>
-          scores[m.id] ? { ...m, homeScore: scores[m.id].home, awayScore: scores[m.id].away, status: 'finished' as const } : m
-        );
-        const computed = computeAll(newMatches, get().knockoutResults);
-        set({ matches: newMatches, ...computed });
+        const finishedIds = get().matches
+          .filter(m => m.status === 'finished')
+          .map(m => m.id)
+          .join(',');
+        const url = `/api/live-scores?XTransformPort=3000&finished=${encodeURIComponent(finishedIds)}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        const newLiveMatches: Record<string, number> = {};
+        for (const update of data.updates) {
+          if (update.status === 'live') {
+            const minute = update.minute ?? 0;
+            get().setScoreLive(update.matchId, update.homeScore, update.awayScore, minute);
+            newLiveMatches[update.matchId] = minute;
+          } else if (update.status === 'finished') {
+            get().setScore(update.matchId, update.homeScore, update.awayScore);
+          }
+        }
+        get().setLiveMatches(newLiveMatches);
+        get().setLastPollTime(new Date().toISOString());
       } catch { /* silently fail */ }
-      set({ isSimulating: false });
+      set({ isRefreshing: false });
     },
-
-    simulateAll: async () => {
-      set({ isSimulating: true });
-      try {
-        const res = await fetch('/api/simulate?XTransformPort=3000', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ all: true }),
-        });
-        const { scores } = await res.json();
-        const newMatches = get().matches.map(m =>
-          scores[m.id] ? { ...m, homeScore: scores[m.id].home, awayScore: scores[m.id].away, status: 'finished' as const } : m
-        );
-        const computed = computeAll(newMatches, get().knockoutResults);
-        set({ matches: newMatches, ...computed });
-      } catch { /* silently fail */ }
-      set({ isSimulating: false });
-    },
-
-    clearAll: () => {
-      const fresh = deepCloneMatches();
-      const freshKR = new Map<string, KnockoutResult>();
-      const computed = computeAll(fresh, freshKR);
-      set({ matches: fresh, knockoutResults: freshKR, liveMatches: {}, lastPollTime: null, ...computed });
-    },
-
-    isSimulating: false,
   };
 });
