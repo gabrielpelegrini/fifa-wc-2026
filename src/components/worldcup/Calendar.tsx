@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { TEAMS, GROUPS } from '@/data/worldcup';
 import { getTeamName } from '@/lib/standings';
 import { formatTime, formatDate } from '@/lib/dateUtils';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
-import { Clock, Filter } from 'lucide-react';
+import { Clock, Filter, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 export default function Calendar() {
   const {
@@ -22,8 +22,35 @@ export default function Calendar() {
     liveMatches,
   } = useWorldCupStore();
 
-  const filteredMatches = useMemo(() => {
-    let result = matches;
+  // All unique dates from matches, sorted
+  const allDates = useMemo(() => {
+    const dates = new Set(matches.map(m => m.date));
+    return Array.from(dates).sort();
+  }, [matches]);
+
+  // Find default index: today or next date with matches
+  const defaultIndex = useMemo(() => {
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+    const idx = allDates.findIndex(d => d >= todayStr);
+    return idx >= 0 ? idx : allDates.length - 1;
+  }, [allDates]);
+
+  const [dateIndex, setDateIndex] = useState(defaultIndex);
+
+  const selectedDate = allDates[dateIndex] ?? '';
+  const canGoPrev = dateIndex > 0;
+  const canGoNext = dateIndex < allDates.length - 1;
+
+  const goPrev = useCallback(() => setDateIndex(i => Math.max(0, i - 1)), []);
+  const goNext = useCallback(() => setDateIndex(i => Math.min(allDates.length - 1, i + 1)), [allDates.length]);
+  const goToday = useCallback(() => setDateIndex(defaultIndex), [defaultIndex]);
+
+  // Apply filters then slice to selected date
+  const dayMatches = useMemo(() => {
+    let result = matches.filter(m => m.date === selectedDate);
 
     if (filterGroup) {
       result = result.filter(m => m.group === filterGroup);
@@ -36,17 +63,18 @@ export default function Calendar() {
     }
 
     return result;
-  }, [matches, filterGroup, filterTeam, filterRound]);
+  }, [matches, selectedDate, filterGroup, filterTeam, filterRound]);
 
-  const groupedByDate = useMemo(() => {
-    const map = new Map<string, typeof filteredMatches>();
-    for (const m of filteredMatches) {
-      const arr = map.get(m.date) || [];
+  // Group matches by time slot within the day
+  const groupedByTime = useMemo(() => {
+    const map = new Map<string, typeof dayMatches>();
+    for (const m of dayMatches) {
+      const arr = map.get(m.time) || [];
       arr.push(m);
-      map.set(m.date, arr);
+      map.set(m.time, arr);
     }
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [filteredMatches]);
+  }, [dayMatches]);
 
   const allTeams = useMemo(() => {
     return Object.entries(TEAMS)
@@ -55,8 +83,85 @@ export default function Calendar() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
+  const dayNumber = dateIndex + 1;
+  const totalDays = allDates.length;
+  const isToday = allDates[defaultIndex] === selectedDate;
+
   return (
     <div className="space-y-4">
+      {/* Date navigation */}
+      <div className="flex items-center justify-between p-3 rounded-lg bg-card border">
+        <button
+          onClick={goPrev}
+          disabled={!canGoPrev}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium
+            hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Anterior</span>
+        </button>
+
+        <button
+          onClick={goToday}
+          className={cn(
+            'flex flex-col items-center px-4 py-1.5 rounded-lg transition-colors',
+            isToday
+              ? 'bg-primary/10 text-primary'
+              : 'hover:bg-accent'
+          )}
+        >
+          <span className="text-base sm:text-lg font-bold leading-tight">
+            {formatDate(selectedDate, timezone)}
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            Dia {dayNumber} de {totalDays}
+          </span>
+        </button>
+
+        <button
+          onClick={goNext}
+          disabled={!canGoNext}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium
+            hover:bg-accent disabled:opacity-30 disabled:pointer-events-none transition-colors"
+        >
+          <span className="hidden sm:inline">Próximo</span>
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Quick date dots */}
+      <div className="flex justify-center gap-1 flex-wrap">
+        {allDates.map((d, i) => {
+          const hasFinished = matches.some(m => m.date === d && m.status === 'finished');
+          const hasLive = matches.some(m => m.date === d && m.status === 'live');
+          const isCurrent = i === dateIndex;
+          const isTodayDate = i === defaultIndex;
+
+          return (
+            <button
+              key={d}
+              onClick={() => setDateIndex(i)}
+              title={formatDate(d, timezone)}
+              className={cn(
+                'w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center transition-all',
+                isCurrent
+                  ? 'bg-primary text-primary-foreground scale-125 ring-2 ring-primary/30'
+                  : isTodayDate
+                    ? 'bg-primary/20 text-primary hover:bg-primary/30'
+                    : hasLive
+                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                      : hasFinished
+                        ? 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted/80'
+              )}
+            >
+              {d.slice(8)} {/* just the day number */}
+            </button>
+          );
+        })}
+        <CalendarDays className="h-4 w-4 text-muted-foreground ml-1 self-center" />
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center p-3 rounded-lg bg-card border">
         <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -100,17 +205,21 @@ export default function Calendar() {
         )}
       </div>
 
-      {/* Match list */}
-      <div className="space-y-4">
-        {groupedByDate.map(([date, dayMatches]) => (
-          <div key={date}>
-            <div className="sticky top-[120px] z-10 bg-background/95 backdrop-blur py-1.5 px-1">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {formatDate(date, timezone)}
+      {/* Match list for selected date */}
+      <div className="space-y-3">
+        {groupedByTime.map(([time, timeMatches]) => (
+          <div key={`${selectedDate}-${time}`}>
+            <div className="flex items-center gap-2 mb-1.5 px-1">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">
+                {formatTime(time, timezone)}
+              </span>
+              <span className="text-[10px] text-muted-foreground/60">
+                {timeMatches.length} {timeMatches.length === 1 ? 'jogo' : 'jogos'}
               </span>
             </div>
             <div className="space-y-1">
-              {dayMatches.map(m => (
+              {timeMatches.map(m => (
                 <MatchRow
                   key={m.id}
                   group={m.group || ''}
@@ -130,8 +239,11 @@ export default function Calendar() {
             </div>
           </div>
         ))}
-        {filteredMatches.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">Nenhum jogo encontrado.</p>
+        {dayMatches.length === 0 && (
+          <div className="text-center py-12">
+            <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+            <p className="text-muted-foreground">Nenhum jogo neste dia com os filtros selecionados.</p>
+          </div>
         )}
       </div>
     </div>
