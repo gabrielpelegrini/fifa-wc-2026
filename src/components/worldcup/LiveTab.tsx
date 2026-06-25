@@ -2,14 +2,16 @@
 
 import { useMemo } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
+import { useLiveScores } from '@/hooks/useLiveScores';
 import { getTeamName } from '@/lib/standings';
 import { formatTime, formatFullDateTime } from '@/lib/dateUtils';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
-import { Clock, MapPin } from 'lucide-react';
+import { Clock, MapPin, Zap, RefreshCw, Loader2 } from 'lucide-react';
 
 export default function LiveTab() {
-  const { matches, timezone, liveMatches } = useWorldCupStore();
+  const { matches, timezone, liveMatches, refreshNow } = useWorldCupStore();
+  const { poll, lastPollTime, fastMode, toggleFastMode, isRefreshing } = useLiveScores();
 
   const { liveList, nextUpList, recentList } = useMemo(() => {
     const live: typeof matches = [];
@@ -61,8 +63,58 @@ export default function LiveTab() {
 
   const hasLive = liveList.length > 0;
 
+  // Format last poll time for display
+  const lastPollDisplay = useMemo(() => {
+    if (!lastPollTime) return null;
+    const d = new Date(lastPollTime);
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }, [lastPollTime]);
+
   return (
     <div className="space-y-6">
+      {/* Controls bar */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refreshNow}
+            disabled={isRefreshing}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
+              isRefreshing
+                ? 'opacity-50 cursor-wait border-border'
+                : 'hover:bg-accent border-border'
+            )}
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            Atualizar
+          </button>
+
+          <button
+            onClick={toggleFastMode}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
+              fastMode
+                ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
+                : 'hover:bg-accent border-border'
+            )}
+          >
+            <Zap className={cn('h-3.5 w-3.5', fastMode && 'text-orange-400')} />
+            {fastMode ? 'Modo Rápido ON' : 'Modo Rápido'}
+          </button>
+        </div>
+
+        {lastPollDisplay && (
+          <span className="text-[10px] text-muted-foreground hidden sm:inline">
+            Última atualização: {lastPollDisplay}
+            {fastMode && <span className="text-orange-400 ml-1">· 30s</span>}
+          </span>
+        )}
+      </div>
+
       {/* LIVE matches */}
       {hasLive && (
         <section>

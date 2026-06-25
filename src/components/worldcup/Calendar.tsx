@@ -4,7 +4,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { TEAMS, GROUPS } from '@/data/worldcup';
 import { getTeamName } from '@/lib/standings';
-import { formatTime, formatDate } from '@/lib/dateUtils';
+import { formatTime, formatDate, getLocalDate } from '@/lib/dateUtils';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
 import { Clock, Filter, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
@@ -22,21 +22,31 @@ export default function Calendar() {
     liveMatches,
   } = useWorldCupStore();
 
-  // All unique dates from matches, sorted
+  // Compute the user-local date for each match (converts UTC date+time → user timezone)
+  const matchLocalDates = useMemo(() => {
+    const map = new Map<string, string>(); // matchId → localDate
+    for (const m of matches) {
+      map.set(m.id, getLocalDate(m.date, m.time, timezone));
+    }
+    return map;
+  }, [matches, timezone]);
+
+  // All unique LOCAL dates from matches, sorted
   const allDates = useMemo(() => {
-    const dates = new Set(matches.map(m => m.date));
+    const dates = new Set(matchLocalDates.values());
     return Array.from(dates).sort();
-  }, [matches]);
+  }, [matchLocalDates]);
 
   // Find default index: today or next date with matches
   const defaultIndex = useMemo(() => {
-    const today = new Date();
-    const todayStr = today.getFullYear() + '-' +
-      String(today.getMonth() + 1).padStart(2, '0') + '-' +
-      String(today.getDate()).padStart(2, '0');
+    const now = new Date();
+    const todayStr = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(now);
     const idx = allDates.findIndex(d => d >= todayStr);
     return idx >= 0 ? idx : allDates.length - 1;
-  }, [allDates]);
+  }, [allDates, timezone]);
 
   const [dateIndex, setDateIndex] = useState(defaultIndex);
 
@@ -48,9 +58,9 @@ export default function Calendar() {
   const goNext = useCallback(() => setDateIndex(i => Math.min(allDates.length - 1, i + 1)), [allDates.length]);
   const goToday = useCallback(() => setDateIndex(defaultIndex), [defaultIndex]);
 
-  // Apply filters then slice to selected date
+  // Apply filters then slice to selected LOCAL date
   const dayMatches = useMemo(() => {
-    let result = matches.filter(m => m.date === selectedDate);
+    let result = matches.filter(m => matchLocalDates.get(m.id) === selectedDate);
 
     if (filterGroup) {
       result = result.filter(m => m.group === filterGroup);
@@ -63,7 +73,7 @@ export default function Calendar() {
     }
 
     return result;
-  }, [matches, selectedDate, filterGroup, filterTeam, filterRound]);
+  }, [matches, selectedDate, filterGroup, filterTeam, filterRound, matchLocalDates]);
 
   // Group matches by time slot within the day
   const groupedByTime = useMemo(() => {
@@ -132,8 +142,8 @@ export default function Calendar() {
       {/* Quick date dots */}
       <div className="flex justify-center gap-1 flex-wrap">
         {allDates.map((d, i) => {
-          const hasFinished = matches.some(m => m.date === d && m.status === 'finished');
-          const hasLive = matches.some(m => m.date === d && m.status === 'live');
+          const hasFinished = matches.some(m => matchLocalDates.get(m.id) === d && m.status === 'finished');
+          const hasLive = matches.some(m => matchLocalDates.get(m.id) === d && m.status === 'live');
           const isCurrent = i === dateIndex;
           const isTodayDate = i === defaultIndex;
 

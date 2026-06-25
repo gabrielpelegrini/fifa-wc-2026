@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
 
 interface ESPNMatchScore {
@@ -18,20 +18,23 @@ interface LiveScoresResponse {
   source: string;
 }
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const SLOW_POLL_MS = 5 * 60 * 1000;  // 5 minutes
+const FAST_POLL_MS = 30 * 1000;       // 30 seconds
 
 /**
- * Polls /api/live-scores every 5 minutes.
- * Fetches REAL data from ESPN API.
+ * Polls /api/live-scores.
+ * Supports fast mode (30s) for live minute-by-minute updates.
  */
 export function useLiveScores() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
   const firstPollDone = useRef(false);
+  const [fastMode, setFastMode] = useState(false);
 
   const bulkUpdateFromESPN = useWorldCupStore(s => s.bulkUpdateFromESPN);
   const lastPollTime = useWorldCupStore(s => s.lastPollTime);
   const setLastPollTime = useWorldCupStore(s => s.setLastPollTime);
+  const isRefreshing = useWorldCupStore(s => s.isRefreshing);
 
   const poll = useCallback(async () => {
     try {
@@ -54,16 +57,25 @@ export function useLiveScores() {
     }
   }, [bulkUpdateFromESPN, setLastPollTime]);
 
-  // Always poll — no toggle needed
+  // Restart interval when fastMode changes
   useEffect(() => {
-    poll();
-    intervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    const ms = fastMode ? FAST_POLL_MS : SLOW_POLL_MS;
+    intervalRef.current = setInterval(poll, ms);
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
+  }, [poll, fastMode]);
+
+  // Initial poll
+  useEffect(() => {
+    poll();
   }, [poll]);
 
   // Cleanup on unmount
@@ -72,5 +84,9 @@ export function useLiveScores() {
     return () => { mountedRef.current = false; };
   }, []);
 
-  return { poll, lastPollTime };
+  const toggleFastMode = useCallback(() => {
+    setFastMode(prev => !prev);
+  }, []);
+
+  return { poll, lastPollTime, fastMode, toggleFastMode, isRefreshing };
 }

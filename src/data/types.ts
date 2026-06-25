@@ -62,6 +62,20 @@ export type BracketSlotRef =
   | { type: 'group_runnerup'; group: string }
   | { type: 'third_place'; pool: string[]; index: number };
 
+export interface KnockoutMatch {
+  id: string;
+  round: 'r32' | 'r16' | 'qf' | 'sf' | 'third_place' | 'final';
+  homeSlot: string;
+  awaySlot: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  date: string;
+  venue: string;
+  city: string;
+}
+
 export interface BracketMatch {
   id: string;
   round: 'r32' | 'r16' | 'qf' | 'sf' | 'third_place' | 'final';
