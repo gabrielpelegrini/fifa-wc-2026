@@ -151,7 +151,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       serverTime: now.toISOString(),
       updates,
-      pollIntervalMs: 20 * 60 * 1000, // 20 minutes
+      pollIntervalMs: 5 * 60 * 1000, // 5 minutes
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

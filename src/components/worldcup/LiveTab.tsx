@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
-import { TEAMS } from '@/data/worldcup';
 import { getTeamName } from '@/lib/standings';
 import { formatTime, formatFullDateTime } from '@/lib/dateUtils';
 import FlagIcon from './FlagIcon';
@@ -13,34 +12,46 @@ export default function LiveTab() {
   const { matches, timezone, liveMatches } = useWorldCupStore();
 
   const { liveList, nextUpList, recentList } = useMemo(() => {
-    const now = new Date();
     const live: typeof matches = [];
-    const nextUp: typeof matches = [];
-    const recent: typeof matches = [];
+    const upcoming: typeof matches = [];
+    const finished: typeof matches = [];
 
-    // Sort all upcoming/finished matches by date+time
-    const sorted = [...matches].sort((a, b) => {
+    // Classify all matches by their STATUS (not by elapsed time)
+    for (const m of matches) {
+      if (m.status === 'finished') {
+        finished.push(m);
+      } else if (m.status === 'live') {
+        live.push(m);
+      } else {
+        upcoming.push(m);
+      }
+    }
+
+    // Most recent 8 finished matches (sort by date DESC)
+    const recent = [...finished]
+      .sort((a, b) => {
+        const da = `${b.date}T${b.time}`;
+        const db = `${a.date}T${a.time}`;
+        return da.localeCompare(db);
+      })
+      .slice(0, 8);
+
+    // Next time slot from truly upcoming matches
+    const upcomingSorted = [...upcoming].sort((a, b) => {
       const da = `${a.date}T${a.time}`;
       const db = `${b.date}T${b.time}`;
       return da.localeCompare(db);
     });
 
-    for (const m of sorted) {
-      const kickoff = new Date(`${m.date}T${m.time}:00Z`);
-      const elapsedMin = (now.getTime() - kickoff.getTime()) / (1000 * 60);
-
-      if (m.status === 'live' || (elapsedMin >= 0 && elapsedMin < 105 && m.status !== 'finished')) {
-        live.push(m);
-      } else if (m.status === 'finished') {
-        // Show last 8 finished
-        if (recent.length < 8) recent.push(m);
-      } else if (elapsedMin < 0) {
-        // Upcoming — find the next time slot
-        if (nextUp.length === 0 || nextUp[0].time === m.time && nextUp[0].date === m.date) {
+    const nextUp: typeof matches = [];
+    if (upcomingSorted.length > 0) {
+      const firstDate = upcomingSorted[0].date;
+      const firstTime = upcomingSorted[0].time;
+      for (const m of upcomingSorted) {
+        if (m.date === firstDate && m.time === firstTime) {
           nextUp.push(m);
-        } else if (nextUp[0].date !== m.date || nextUp[0].time !== m.time) {
-          // Already have the next slot, stop
-          break;
+        } else {
+          break; // different time slot — stop
         }
       }
     }
