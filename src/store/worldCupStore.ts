@@ -10,6 +10,15 @@ interface KnockoutResult {
   away: number;
 }
 
+interface ESPNMatchScore {
+  matchId: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: 'upcoming' | 'live' | 'finished';
+  minute?: number;
+  displayClock?: string;
+}
+
 interface WorldCupState {
   matches: MatchDef[];
   knockoutResults: Map<string, KnockoutResult>;
@@ -38,6 +47,7 @@ interface WorldCupState {
   recalculate: () => void;
   setLastPollTime: (t: string | null) => void;
   setLiveMatches: (m: Record<string, number>) => void;
+  bulkUpdateFromESPN: (scores: Record<string, ESPNMatchScore>) => void;
   refreshNow: () => Promise<void>;
 }
 
@@ -123,28 +133,38 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       set(computed);
     },
 
+    bulkUpdateFromESPN: (scores) => {
+      const newMatches = get().matches.map(m => {
+        const s = scores[m.id];
+        if (!s) return m;
+        return {
+          ...m,
+          homeScore: s.homeScore,
+          awayScore: s.awayScore,
+          status: s.status,
+        };
+      });
+      const newLiveMatches: Record<string, number> = {};
+      for (const [id, s] of Object.entries(scores)) {
+        if (s.status === 'live' && s.minute != null) {
+          newLiveMatches[id] = s.minute;
+        }
+      }
+      const kr = get().knockoutResults;
+      const computed = computeAll(newMatches, kr);
+      set({ matches: newMatches, liveMatches: newLiveMatches, ...computed });
+    },
+
     refreshNow: async () => {
       set({ isRefreshing: true });
       try {
-        const finishedIds = get().matches
-          .filter(m => m.status === 'finished')
-          .map(m => m.id)
-          .join(',');
-        const url = `/api/live-scores?XTransformPort=3000&finished=${encodeURIComponent(finishedIds)}`;
+        const url = `/api/live-scores?XTransformPort=3000`;
         const res = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
-        const newLiveMatches: Record<string, number> = {};
-        for (const update of data.updates) {
-          if (update.status === 'live') {
-            const minute = update.minute ?? 0;
-            get().setScoreLive(update.matchId, update.homeScore, update.awayScore, minute);
-            newLiveMatches[update.matchId] = minute;
-          } else if (update.status === 'finished') {
-            get().setScore(update.matchId, update.homeScore, update.awayScore);
-          }
+        if (data.scores) {
+          get().bulkUpdateFromESPN(data.scores);
         }
-        get().setLiveMatches(newLiveMatches);
         get().setLastPollTime(new Date().toISOString());
       } catch { /* silently fail */ }
       set({ isRefreshing: false });

@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/rezarahiminia/worldcup2026",
+    "name": "Grab your football API data for FIFA World Cup 2026  - GitHub",
+    "snippet": "The first-ever 48-team FIFA World Cup — Free REST API with live scores, 104 matches, 16 stadiums, 12 groups, and real-time updates. No API key ...",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "Jun 24, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.api-football.com/news/post/fifa-world-cup-2026-guide-to-using-data-with-api-sports",
+    "name": "FIFA WORLD CUP 2026: Guide to Using Data with API-SPORTS",
+    "snippet": "The endpoints below can help you build a live score tracker, group standings, team and player pages, or a performance tracker. The building ...",
+    "host_name": "www.api-football.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/sportsanalytics/comments/1ttdhiw/looking_for_free_world_cup_api",
+    "name": "Looking for free world cup API : r/sportsanalytics - Reddit",
+    "snippet": "I built an editable 2026 World Cup simulator - change any group score ... I built a no-login World Cup 2026 predictor — quick pick or full bracket.\nESPN has a lot of information with their API but its kind of hidden, https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard.",
+    "host_name": "www.reddit.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.sportmonks.com/football-api/world-cup-api",
+    "name": "Live World Cup 2026 data, plug and play - Football API - Sportmonks",
+    "snippet": "Our World Cup API cover all statistics, livescores, schedules, standings and many more. Create your dream football application. Start now!",
+    "host_name": "www.sportmonks.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.thestatsapi.com/blog/best-world-cup-2026-apis",
+    "name": "Best World Cup 2026 APIs for Fixtures, Scores, Stats & Odds",
+    "snippet": "Compare the best World Cup 2026 APIs for fixtures, groups, live scores, standings, player stats, xG, odds, and prediction apps.",
+    "host_name": "www.thestatsapi.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fifa.balldontlie.io",
+    "name": "BALLDONTLIE FIFA World Cup API",
+    "snippet": "Welcome to the BALLDONTLIE FIFA World Cup API, your source for World Cup data across the 2018, 2022, and 2026 tournaments — teams, stadiums, players, ...\nMatches. Match data is updated in real-time for games that are in progress. Scores refresh automatically as goals are scored. Get All Matches.",
+    "host_name": "fifa.balldontlie.io",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.quora.com/Is-there-an-API-for-getting-the-live-score-for-the-FIFA-World-Cup",
+    "name": "Is there an API for getting the live score for the FIFA World Cup?",
+    "snippet": "TheSports API easily allows you to access live scores of any sport in real time. It covers over soccer, basketball, tennis, baseball, cricket, ...",
+    "host_name": "www.quora.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://live-score-api.com/world-cup-api",
+    "name": "World Cup API :: Football API / Livescore API",
+    "snippet": "Our USA/Canada/Mexico 2026 World Cup API provides you with all the live-scores data that you would need during the competition.",
+    "host_name": "live-score-api.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.api-football.com",
+    "name": "API-Football - Restful API for Football data",
+    "snippet": "Restful API for Football data +1 200 competitions, Livescore, standings, teams, odds, bookmakers, fixtures, events, line-ups, players, statistics, ...\nFOOTBALL WIDGETS. WE PROVIDE FREE WIDGETS FOOR FOOTBALL DATA LIKE LIVESCORE, FIXTURES AND STANDINGS ... Real-time matches and events updated every 15 seconds. (In ...",
+    "host_name": "www.api-football.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://highlightly.net/blogs/best-football-apis-in-2026",
+    "name": "Best Football APIs in 2026 - Highlightly",
+    "snippet": "Highlightly bundles football data and video highlights into a single API. You get live scores, match statistics, player data, lineups, standings, predictions, ...",
+    "host_name": "highlightly.net",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

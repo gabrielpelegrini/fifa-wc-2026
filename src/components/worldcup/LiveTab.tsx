@@ -86,6 +86,11 @@ export default function LiveTab() {
               />
             ))}
           </div>
+          {Object.keys(liveMatches).length > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Dados reais via ESPN
+            </p>
+          )}
         </section>
       )}
 
@@ -156,6 +161,7 @@ function LiveMatchCard({
   homeScore: number; awayScore: number; minute: number;
   venue: string; city: string; group: string; timezone: string;
 }) {
+  const minuteDisplay = minute > 0 ? `${minute}'` : 'AO VIVO';
   return (
     <div className="rounded-xl border border-red-500/40 bg-red-950/20 p-3 sm:p-4">
       <div className="flex items-center justify-between mb-2">
@@ -164,7 +170,7 @@ function LiveMatchCard({
         </span>
         <span className="flex items-center gap-1 text-[10px] font-bold text-red-400">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-          {minute}&apos; min
+          {minuteDisplay}
         </span>
       </div>
       <div className="flex items-center justify-between gap-3">

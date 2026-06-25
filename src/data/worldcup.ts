@@ -61,9 +61,9 @@ export const TEAMS: Record<string, Team> = {
   austria:      { id: 'austria',      code: 'at', name: 'Áustria',          flag: 'at' },
   jordan:       { id: 'jordan',       code: 'jo', name: 'Jordânia',          flag: 'jo' },
 
-  // ===== GROUP K: Portugal, Jamaica, Uzbequistão, Colômbia =====
+  // ===== GROUP K: Portugal, RD Congo, Uzbequistão, Colômbia =====
   portugal:     { id: 'portugal',     code: 'pt', name: 'Portugal',         flag: 'pt' },
-  jamaica:      { id: 'jamaica',      code: 'jm', name: 'Jamaica',          flag: 'jm' },
+  dr_congo:     { id: 'dr_congo',     code: 'cd', name: 'RD Congo',        flag: 'cd' },
   uzbekistan:   { id: 'uzbekistan',   code: 'uz', name: 'Uzbequistão',      flag: 'uz' },
   colombia:     { id: 'colombia',     code: 'co', name: 'Colômbia',         flag: 'co' },
 
@@ -85,7 +85,7 @@ export const GROUPS: GroupDef[] = [
   { id: 'H', teams: ['spain', 'cape_verde', 'saudi_arabia', 'uruguay'] },
   { id: 'I', teams: ['france', 'senegal', 'iraq', 'norway'] },
   { id: 'J', teams: ['argentina', 'algeria', 'austria', 'jordan'] },
-  { id: 'K', teams: ['portugal', 'jamaica', 'uzbekistan', 'colombia'] },
+  { id: 'K', teams: ['portugal', 'dr_congo', 'uzbekistan', 'colombia'] },
   { id: 'L', teams: ['england', 'croatia', 'ghana', 'panama'] },
 ];
 

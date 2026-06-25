@@ -3,44 +3,39 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
 
-interface LiveUpdate {
+interface ESPNMatchScore {
   matchId: string;
-  homeScore: number;
-  awayScore: number;
-  status: 'live' | 'finished';
+  homeScore: number | null;
+  awayScore: number | null;
+  status: 'upcoming' | 'live' | 'finished';
   minute?: number;
+  displayClock?: string;
 }
 
 interface LiveScoresResponse {
   serverTime: string;
-  updates: LiveUpdate[];
+  scores: Record<string, ESPNMatchScore>;
+  source: string;
 }
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Polls /api/live-scores every 5 minutes.
- * Auto-starts on mount (no toggle needed — data is always automatic).
+ * Fetches REAL data from ESPN API.
  */
 export function useLiveScores() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const firstPollDone = useRef(false);
 
-  const setScore = useWorldCupStore(s => s.setScore);
-  const setScoreLive = useWorldCupStore(s => s.setScoreLive);
-  const matches = useWorldCupStore(s => s.matches);
+  const bulkUpdateFromESPN = useWorldCupStore(s => s.bulkUpdateFromESPN);
   const lastPollTime = useWorldCupStore(s => s.lastPollTime);
   const setLastPollTime = useWorldCupStore(s => s.setLastPollTime);
-  const setLiveMatches = useWorldCupStore(s => s.setLiveMatches);
 
   const poll = useCallback(async () => {
     try {
-      const finishedIds = matches
-        .filter(m => m.status === 'finished')
-        .map(m => m.id)
-        .join(',');
-
-      const url = `/api/live-scores?XTransformPort=3000&finished=${encodeURIComponent(finishedIds)}`;
+      const url = `/api/live-scores?XTransformPort=3000`;
       const res = await fetch(url);
       if (!res.ok) return;
 
@@ -48,24 +43,16 @@ export function useLiveScores() {
 
       if (!mountedRef.current) return;
 
-      const newLiveMatches: Record<string, number> = {};
-
-      for (const update of data.updates) {
-        if (update.status === 'live') {
-          const minute = update.minute ?? 0;
-          setScoreLive(update.matchId, update.homeScore, update.awayScore, minute);
-          newLiveMatches[update.matchId] = minute;
-        } else if (update.status === 'finished') {
-          setScore(update.matchId, update.homeScore, update.awayScore);
-        }
+      if (data.scores && Object.keys(data.scores).length > 0) {
+        bulkUpdateFromESPN(data.scores);
       }
 
-      setLiveMatches(newLiveMatches);
       setLastPollTime(new Date().toISOString());
+      firstPollDone.current = true;
     } catch {
       // Silently fail - polling will retry
     }
-  }, [matches, setScore, setScoreLive, setLiveMatches, setLastPollTime]);
+  }, [bulkUpdateFromESPN, setLastPollTime]);
 
   // Always poll — no toggle needed
   useEffect(() => {
