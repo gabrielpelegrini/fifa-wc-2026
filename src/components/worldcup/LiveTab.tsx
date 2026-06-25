@@ -38,8 +38,18 @@ export default function LiveTab() {
       })
       .slice(0, 8);
 
-    // Next time slot from truly upcoming matches
-    const upcomingSorted = [...upcoming].sort((a, b) => {
+    // Next time slot from truly upcoming FUTURE matches
+    // (filter out past matches that ESPN didn't mark as finished)
+    const now = Date.now();
+    const upcomingFuture = upcoming.filter(m => {
+      const [h, min] = m.time.split(':').map(Number);
+      const matchUTC = new Date(
+        `${m.date}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00Z`
+      ).getTime();
+      return matchUTC > now;
+    });
+
+    const upcomingSorted = upcomingFuture.sort((a, b) => {
       const da = `${a.date}T${a.time}`;
       const db = `${b.date}T${b.time}`;
       return da.localeCompare(db);
@@ -175,9 +185,13 @@ export default function LiveTab() {
 
       {!hasLive && nextUpList.length === 0 && (
         <div className="text-center py-16">
-          <p className="text-4xl mb-3">🏆</p>
-          <p className="text-lg font-semibold">Fase de grupos encerrada</p>
-          <p className="text-sm text-muted-foreground mt-1">Todos os jogos desta fase foram concluídos.</p>
+          <p className="text-4xl mb-3">⚽</p>
+          <p className="text-lg font-semibold">Nenhum jogo próximo</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {recentList.length > 0
+              ? 'Todos os próximos jogos ainda não começaram. Confira os resultados abaixo.'
+              : 'Carregando dados dos jogos...'}
+          </p>
         </div>
       )}
 
