@@ -7,9 +7,13 @@ import KnockoutBracket from '@/components/worldcup/KnockoutBracket';
 import CrossoverPredictor from '@/components/worldcup/CrossoverPredictor';
 import ScoreInput from '@/components/worldcup/ScoreInput';
 import { useWorldCupStore } from '@/store/worldCupStore';
+import { useLiveScores } from '@/hooks/useLiveScores';
 
 export default function Home() {
   const activeTab = useWorldCupStore(s => s.activeTab);
+
+  // Activate live score polling (respects autoUpdate toggle in store)
+  useLiveScores();
 
   return (
     <div className="min-h-screen flex flex-col">

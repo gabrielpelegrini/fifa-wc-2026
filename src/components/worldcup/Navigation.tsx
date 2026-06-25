@@ -2,7 +2,7 @@
 
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { cn } from '@/lib/utils';
-import { Calendar, Trophy, GitBranch, ArrowLeftRight, Moon, Sun, Play, RotateCcw, Zap } from 'lucide-react';
+import { Calendar, Trophy, GitBranch, ArrowLeftRight, Moon, Sun, Play, RotateCcw, Zap, Radio } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 const TABS = [
@@ -13,8 +13,9 @@ const TABS = [
 ];
 
 export default function Navigation() {
-  const { activeTab, setActiveTab, timezone, setTimezone, simulateRound, simulateAll, clearAll, isSimulating } = useWorldCupStore();
+  const { activeTab, setActiveTab, timezone, setTimezone, simulateRound, simulateAll, clearAll, isSimulating, autoUpdate, setAutoUpdate, lastPollTime, liveMatches } = useWorldCupStore();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const liveCount = Object.keys(liveMatches).length;
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports:[backdrop-filter]:bg-background/60">
@@ -72,6 +73,19 @@ export default function Navigation() {
               title="Limpar todos os placares"
             >
               <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setAutoUpdate(!autoUpdate)}
+              className={cn(
+                'rounded-md p-1.5 transition-colors flex items-center gap-1',
+                autoUpdate ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30' : 'hover:bg-accent'
+              )}
+              title={autoUpdate ? 'Auto-update ligado (polling a cada 20min)' : 'Ligar auto-update de placares'}
+            >
+              <Radio className={cn('h-3.5 w-3.5', autoUpdate && 'animate-pulse')} />
+              {liveCount > 0 && (
+                <span className="text-[10px] font-bold text-red-400">{liveCount} ao vivo</span>
+              )}
             </button>
             <button
               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}

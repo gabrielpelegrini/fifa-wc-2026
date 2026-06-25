@@ -48,6 +48,9 @@ export default function Calendar() {
     setFilterTeam,
     setFilterRound,
     setEditingMatch,
+    liveMatches,
+    lastPollTime,
+    autoUpdate,
   } = useWorldCupStore();
 
   const filteredMatches = useMemo(() => {
@@ -141,13 +144,14 @@ export default function Calendar() {
               {dayMatches.map(m => (
                 <MatchRow
                   key={m.id}
-                  matchId={m.id}
                   group={m.group || ''}
-                  round={m.round}
+                  round={m.round ?? 1}
                   homeTeam={m.homeTeam}
                   awayTeam={m.awayTeam}
-                  homeScore={m.homeScore}
-                  awayScore={m.awayScore}
+                  homeScore={m.homeScore ?? null}
+                  awayScore={m.awayScore ?? null}
+                  status={m.status}
+                  liveMinute={liveMatches[m.id]}
                   time={m.time}
                   venue={m.venue}
                   city={m.city}
@@ -168,17 +172,18 @@ export default function Calendar() {
 }
 
 function MatchRow({
-  matchId, group, round, homeTeam, awayTeam,
-  homeScore, awayScore, time, venue, city, country,
+  group, round, homeTeam, awayTeam,
+  homeScore, awayScore, status, liveMinute, time, venue, city, country,
   timezone, onClick
 }: {
-  matchId: string;
   group: string;
   round: number;
   homeTeam: string;
   awayTeam: string;
   homeScore: number | null;
   awayScore: number | null;
+  status?: 'upcoming' | 'live' | 'finished';
+  liveMinute?: number;
   time: string;
   venue: string;
   city: string;
@@ -186,7 +191,8 @@ function MatchRow({
   timezone: string;
   onClick: () => void;
 }) {
-  const isFinished = homeScore !== null && awayScore !== null;
+  const isLive = status === 'live';
+  const isFinished = status === 'finished' || (homeScore !== null && awayScore !== null && !isLive);
   const isPlaceholderMatch = TEAMS[homeTeam]?.isPlaceholder || TEAMS[awayTeam]?.isPlaceholder;
 
   return (
@@ -194,9 +200,11 @@ function MatchRow({
       onClick={onClick}
       className={cn(
         'w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border text-left transition-colors',
-        isFinished
-          ? 'bg-card hover:bg-accent/50 border-border/50'
-          : 'bg-card hover:bg-accent border-border',
+        isLive
+          ? 'bg-red-950/30 hover:bg-red-900/30 border-red-500/50'
+          : isFinished
+            ? 'bg-card hover:bg-accent/50 border-border/50'
+            : 'bg-card hover:bg-accent border-border',
         isPlaceholderMatch && 'opacity-70'
       )}
     >
@@ -213,9 +221,19 @@ function MatchRow({
           <span className="text-xs sm:text-sm font-medium truncate">{getTeamName(homeTeam)}</span>
         </div>
 
-        {/* Score / Time */}
+        {/* Score / Time / Live */}
         <div className="flex flex-col items-center shrink-0">
-          {isFinished ? (
+          {isLive ? (
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                {liveMinute}&apos;min
+              </span>
+              <span className="text-sm sm:text-base font-bold text-red-300">
+                {homeScore} × {awayScore}
+              </span>
+            </div>
+          ) : isFinished ? (
             <span className="text-sm sm:text-base font-bold">
               {homeScore} × {awayScore}
             </span>

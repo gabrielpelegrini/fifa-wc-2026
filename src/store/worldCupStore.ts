@@ -31,8 +31,14 @@ interface WorldCupState {
   thirdPlaceRanking: ThirdPlaceEntry[];
   bracket: ReturnType<typeof resolveBracket> | null;
 
+  // Auto-update (live scores)
+  autoUpdate: boolean;
+  lastPollTime: string | null;
+  liveMatches: Record<string, number>; // matchId -> minute
+
   // Actions
   setScore: (matchId: string, home: number | null, away: number | null) => void;
+  setScoreLive: (matchId: string, home: number, away: number, minute: number) => void;
   setKnockoutScore: (matchId: string, home: number, away: number) => void;
   setTimezone: (tz: string) => void;
   setActiveTab: (tab: string) => void;
@@ -45,6 +51,9 @@ interface WorldCupState {
   simulateAll: () => Promise<void>;
   clearAll: () => void;
   isSimulating: boolean;
+  setAutoUpdate: (on: boolean) => void;
+  setLastPollTime: (t: string | null) => void;
+  setLiveMatches: (m: Record<string, number>) => void;
 }
 
 function deepCloneMatches(): MatchDef[] {
@@ -81,13 +90,36 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     thirdPlaceRanking: initial.thirdPlaceRanking,
     bracket: initial.bracket,
 
+    // Auto-update state
+    autoUpdate: false,
+    lastPollTime: null,
+    liveMatches: {},
+
+    setAutoUpdate: (on: boolean) => set({ autoUpdate: on }),
+    setLastPollTime: (t: string | null) => set({ lastPollTime: t }),
+    setLiveMatches: (m: Record<string, number>) => set({ liveMatches: m }),
+
     setScore: (matchId, home, away) => {
       const newMatches = get().matches.map(m =>
-        m.id === matchId ? { ...m, homeScore: home, awayScore: away, status: (home !== null && away !== null) ? 'finished' as const : 'upcoming' as const } : m
+        m.id === matchId
+          ? { ...m, homeScore: home, awayScore: away, status: (home !== null && away !== null) ? 'finished' as const : 'upcoming' as const }
+          : m
       );
       const kr = get().knockoutResults;
       const computed = computeAll(newMatches, kr);
       set({ matches: newMatches, ...computed });
+    },
+
+    setScoreLive: (matchId, home, away, minute) => {
+      const newMatches = get().matches.map(m =>
+        m.id === matchId
+          ? { ...m, homeScore: home, awayScore: away, status: 'live' as const }
+          : m
+      );
+      const newLive = { ...get().liveMatches, [matchId]: minute };
+      const kr = get().knockoutResults;
+      const computed = computeAll(newMatches, kr);
+      set({ matches: newMatches, liveMatches: newLive, ...computed });
     },
 
     setKnockoutScore: (matchId, home, away) => {
@@ -150,7 +182,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       const fresh = deepCloneMatches();
       const freshKR = new Map<string, KnockoutResult>();
       const computed = computeAll(fresh, freshKR);
-      set({ matches: fresh, knockoutResults: freshKR, ...computed });
+      set({ matches: fresh, knockoutResults: freshKR, liveMatches: {}, lastPollTime: null, ...computed });
     },
 
     isSimulating: false,
