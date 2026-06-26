@@ -46,31 +46,20 @@ export default function LiveTab() {
       year: 'numeric', month: '2-digit', day: '2-digit',
     }).format(new Date());
 
-    const upcomingFuture = upcoming.filter(m => {
+    // Show ALL upcoming matches from TODAY (user timezone)
+    // Finished games are already excluded (they're in the finished[] list)
+    const todayMatches = upcoming.filter(m => {
       const localDate = getLocalDate(m.date, m.time, timezone);
-      return localDate >= todayLocal;
+      return localDate === todayLocal;
     });
 
-    const upcomingSorted = upcomingFuture.sort((a, b) => {
+    const todaySorted = todayMatches.sort((a, b) => {
       const da = `${a.date}T${a.time}`;
       const db = `${b.date}T${b.time}`;
       return da.localeCompare(db);
     });
 
-    const nextUp: typeof matches = [];
-    if (upcomingSorted.length > 0) {
-      const firstDate = upcomingSorted[0].date;
-      const firstTime = upcomingSorted[0].time;
-      for (const m of upcomingSorted) {
-        if (m.date === firstDate && m.time === firstTime) {
-          nextUp.push(m);
-        } else {
-          break; // different time slot — stop
-        }
-      }
-    }
-
-    return { liveList: live, nextUpList: nextUp, recentList: recent };
+    return { liveList: live, nextUpList: todaySorted, recentList: recent };
   }, [matches, timezone]);
 
   const hasLive = liveList.length > 0;
@@ -158,16 +147,14 @@ export default function LiveTab() {
         </section>
       )}
 
-      {/* NEXT UP — always show if there are upcoming matches */}
+      {/* NEXT UP — show ALL today's upcoming games */}
       {nextUpList.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Próximos Jogos</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Próximos Jogos de Hoje</h2>
+            <span className="text-[10px] text-muted-foreground">({nextUpList.length})</span>
           </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            {formatFullDateTime(nextUpList[0].date, nextUpList[0].time, timezone)}
-          </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {nextUpList.map(m => (
               <UpcomingMatchCard
