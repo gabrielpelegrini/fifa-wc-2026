@@ -46,20 +46,26 @@ export default function LiveTab() {
       year: 'numeric', month: '2-digit', day: '2-digit',
     }).format(new Date());
 
-    // Show ALL upcoming matches from TODAY (user timezone)
-    // Finished games are already excluded (they're in the finished[] list)
-    const todayMatches = upcoming.filter(m => {
-      const localDate = getLocalDate(m.date, m.time, timezone);
-      return localDate === todayLocal;
-    });
+    // Show ALL upcoming matches from TODAY onwards (user timezone).
+    // Finished/live games are already in their own sections.
+    // Uses >= so if today's games are all finished, tomorrow's games still show.
+    const todayLocal = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
 
-    const todaySorted = todayMatches.sort((a, b) => {
-      const da = `${a.date}T${a.time}`;
-      const db = `${b.date}T${b.time}`;
-      return da.localeCompare(db);
-    });
+    const upcomingSorted = upcoming
+      .filter(m => {
+        const localDate = getLocalDate(m.date, m.time, timezone);
+        return localDate >= todayLocal;
+      })
+      .sort((a, b) => {
+        const da = `${a.date}T${a.time}`;
+        const db = `${b.date}T${b.time}`;
+        return da.localeCompare(db);
+      });
 
-    return { liveList: live, nextUpList: todaySorted, recentList: recent };
+    return { liveList: live, nextUpList: upcomingSorted, recentList: recent };
   }, [matches, timezone]);
 
   const hasLive = liveList.length > 0;
@@ -152,7 +158,7 @@ export default function LiveTab() {
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Próximos Jogos de Hoje</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Próximos Jogos</h2>
             <span className="text-[10px] text-muted-foreground">({nextUpList.length})</span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
