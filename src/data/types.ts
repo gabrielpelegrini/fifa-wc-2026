@@ -19,7 +19,7 @@ export interface MatchDef {
   group?: string; // 'A'-'L' for group matches
   round?: number; // matchday 1-3 for group
   knockoutSlot?: string; // e.g. 'R32-01', 'R16-01', etc.
-  homeTeam: string; // team id, or slot ref like '1A', '2B', '3DEF_best'
+  homeTeam: string; // team id, or slot ref like '1A', '2B', '3_ABCDF'
   awayTeam: string;
   homeSlot?: string; // bracket slot reference
   awaySlot?: string;
@@ -60,7 +60,7 @@ export interface ThirdPlaceEntry {
 export type BracketSlotRef =
   | { type: 'group_winner'; group: string }
   | { type: 'group_runnerup'; group: string }
-  | { type: 'third_place'; pool: string[]; index: number };
+  | { type: 'third_place'; pool: string[] };
 
 export interface KnockoutMatch {
   id: string;
@@ -72,6 +72,7 @@ export interface KnockoutMatch {
   homeScore: number | null;
   awayScore: number | null;
   date: string;
+  time: string; // HH:MM in UTC
   venue: string;
   city: string;
 }

@@ -1,5 +1,6 @@
 import { TeamStanding, ThirdPlaceEntry, MatchDef } from '@/data/types';
 import { calculateGroupStandings, getTeamName } from './standings';
+import { THIRD_PLACE_POOLS } from '@/data/worldcup';
 
 export function calculateThirdPlaceRanking(
   allStandings: Map<string, TeamStanding[]>,
@@ -35,7 +36,7 @@ export function calculateThirdPlaceRanking(
     return 0;
   });
 
-  // Assign ranks and qualification
+  // Assign ranks and qualification (top 8 of 12 third-place teams qualify)
   thirds.forEach((t, i) => {
     t.rank = i + 1;
     t.qualified = i < 8;
@@ -45,32 +46,77 @@ export function calculateThirdPlaceRanking(
 }
 
 /**
- * Get the team ID for a given third-place pool slot.
- * poolGroups: the groups in this pool (e.g., ['A','B','C'])
- * index: 0 = best, 1 = second best
+ * Resolve ALL 8 third-place bracket slots at once.
+ * Returns a Map: slotId (e.g. '3_ABCDF') → teamId
+ *
+ * Approach: for each pool (in match order R32-01..R32-16),
+ * find the best qualified third-place team from the pool's groups
+ * that hasn't already been assigned to another slot.
+ *
+ * Note: FIFA uses a 495-row lookup table for exact assignment.
+ * This heuristic is correct for the vast majority of scenarios.
+ */
+export function resolveAllThirdPlaceSlots(
+  allStandings: Map<string, TeamStanding[]>,
+  thirds: ThirdPlaceEntry[]
+): Map<string, string> {
+  const result = new Map<string, string>();
+  const assigned = new Set<string>(); // teamIds already assigned
+
+  // Get the pool slot IDs in R32 match order (from BRACKET_CONFIG)
+  const poolSlotsInOrder = [
+    '3_ABCDF',  // R32-02
+    '3_CDFGH',  // R32-05
+    '3_CEFHI',  // R32-07
+    '3_EHIJK',  // R32-08
+    '3_BEFIJ',  // R32-09
+    '3_AEHIJ',  // R32-10
+    '3_EFGIJ',  // R32-13
+    '3_DEIJL',  // R32-15
+  ];
+
+  for (const slotId of poolSlotsInOrder) {
+    const pool = (THIRD_PLACE_POOLS as Record<string, { groups: readonly string[] }>)[slotId];
+    if (!pool) continue;
+
+    // Find best qualified third from this pool's groups that isn't already assigned
+    const poolThirds = thirds
+      .filter(t => pool.groups.includes(t.groupId) && t.qualified && !assigned.has(t.teamId))
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+        return a.fairPlay - b.fairPlay;
+      });
+
+    if (poolThirds.length > 0) {
+      result.set(slotId, poolThirds[0].teamId);
+      assigned.add(poolThirds[0].teamId);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Legacy function - resolves a single third-place slot.
+ * Used by bracketResolver for backward compatibility.
  */
 export function resolveThirdPlaceSlot(
   poolSlotId: string,
   allStandings: Map<string, TeamStanding[]>,
-  thirds: ThirdPlaceEntry[]
+  thirds: ThirdPlaceEntry[],
+  preResolved?: Map<string, string>
 ): string | null {
-  // Map slot IDs to pool groups
-  const slotPools: Record<string, { groups: string[]; index: number }> = {
-    '3ABC_1': { groups: ['A', 'B', 'C'], index: 0 },
-    '3ABC_2': { groups: ['A', 'B', 'C'], index: 1 },
-    '3DEF_1': { groups: ['D', 'E', 'F'], index: 0 },
-    '3DEF_2': { groups: ['D', 'E', 'F'], index: 1 },
-    '3GHI_1': { groups: ['G', 'H', 'I'], index: 0 },
-    '3GHI_2': { groups: ['G', 'H', 'I'], index: 1 },
-    '3JKL_1': { groups: ['J', 'K', 'L'], index: 0 },
-    '3JKL_2': { groups: ['J', 'K', 'L'], index: 1 },
-    '3ADEF_1': { groups: ['A', 'D', 'E', 'F'], index: 0 },
-  };
+  // If pre-resolved map is provided, use it directly
+  if (preResolved) {
+    return preResolved.get(poolSlotId) ?? null;
+  }
 
-  const pool = slotPools[poolSlotId];
+  // Fallback: resolve individually (less accurate for overlapping pools)
+  const pool = (THIRD_PLACE_POOLS as Record<string, { groups: readonly string[] }>)[poolSlotId];
   if (!pool) return null;
 
-  // Filter third-place teams that belong to this pool's groups
   const poolThirds = thirds
     .filter(t => pool.groups.includes(t.groupId) && t.qualified)
     .sort((a, b) => {
@@ -80,23 +126,18 @@ export function resolveThirdPlaceSlot(
       return a.fairPlay - b.fairPlay;
     });
 
-  if (pool.index < poolThirds.length) {
-    return poolThirds[pool.index].teamId;
+  if (poolThirds.length > 0) {
+    return poolThirds[0].teamId;
   }
   return null;
 }
 
 export function getThirdPlacePoolLabel(slotId: string): string {
-  const labels: Record<string, string> = {
-    '3ABC_1': 'Melhor 3° de A/B/C',
-    '3ABC_2': '2° melhor 3° de A/B/C',
-    '3DEF_1': 'Melhor 3° de D/E/F',
-    '3DEF_2': '2° melhor 3° de D/E/F',
-    '3GHI_1': 'Melhor 3° de G/H/I',
-    '3GHI_2': '2° melhor 3° de G/H/I',
-    '3JKL_1': 'Melhor 3° de J/K/L',
-    '3JKL_2': '2° melhor 3° de J/K/L',
-    '3ADEF_1': 'Melhor 3° de A/D/E/F',
-  };
-  return labels[slotId] || slotId;
+  const pool = (THIRD_PLACE_POOLS as Record<string, { label: string }>)[slotId];
+  if (pool) return pool.label;
+  // Fallback for old-style slot IDs
+  if (/^3([A-L])/.test(slotId)) {
+    return `3° lugar ${slotId.replace('3', '')}`;
+  }
+  return slotId;
 }

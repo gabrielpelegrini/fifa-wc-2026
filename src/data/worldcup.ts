@@ -232,68 +232,73 @@ export const GROUP_MATCHES = [
   gm('G_L3_2', 'L', 3, 1, 2, '2026-06-27', '21:00', 'lumen'),         // L2 vs L3
 ];
 
-// Bracket configuration for knockout stage
-// Each R32 match defines its home/away slot references
+// ============================================================
+// Official FIFA World Cup 2026 Knockout Bracket
+// Source: https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/knockout-stage-match-schedule-bracket
+// 48 teams → 12 groups → Top 2 (24) + 8 best 3rd (8) = 32 in R32
+// ============================================================
+
 export const BRACKET_CONFIG = {
-  // Round of 32 - slot references
+  // Round of 32 — 16 matches (M73–M88)
   r32: [
-    { id: 'R32-01', homeSlot: '1A',  awaySlot: '2B',   date: '2026-06-29', venue: 'SoFi Stadium',         city: 'Inglewood' },
-    { id: 'R32-02', homeSlot: '1C',  awaySlot: '3DEF_1', date: '2026-06-29', venue: 'SoFi Stadium',         city: 'Inglewood' },
-    { id: 'R32-03', homeSlot: '1E',  awaySlot: '2D',   date: '2026-06-30', venue: "Levi's Stadium",        city: 'Santa Clara' },
-    { id: 'R32-04', homeSlot: '1G',  awaySlot: '3ABC_1', date: '2026-06-30', venue: "Levi's Stadium",        city: 'Santa Clara' },
-    { id: 'R32-05', homeSlot: '2G',  awaySlot: '2H',   date: '2026-06-30', venue: 'Lumen Field',           city: 'Seattle' },
-    { id: 'R32-06', homeSlot: '1B',  awaySlot: '3ADEF_1', date: '2026-07-01', venue: 'Lumen Field',           city: 'Seattle' },
-    { id: 'R32-07', homeSlot: '1F',  awaySlot: '2E',   date: '2026-07-01', venue: 'Gillette Stadium',      city: 'Foxborough' },
-    { id: 'R32-08', homeSlot: '1D',  awaySlot: '2C',   date: '2026-07-01', venue: 'Gillette Stadium',      city: 'Foxborough' },
-    { id: 'R32-09', homeSlot: '1I',  awaySlot: '3GHI_1', date: '2026-07-02', venue: 'Lincoln Financial Field', city: 'Philadelphia' },
-    { id: 'R32-10', homeSlot: '1K',  awaySlot: '3JKL_1', date: '2026-07-02', venue: 'Lincoln Financial Field', city: 'Philadelphia' },
-    { id: 'R32-11', homeSlot: '2I',  awaySlot: '2J',   date: '2026-07-02', venue: 'AT&T Stadium',         city: 'Arlington' },
-    { id: 'R32-12', homeSlot: '2K',  awaySlot: '2L',   date: '2026-07-02', venue: 'AT&T Stadium',         city: 'Arlington' },
-    { id: 'R32-13', homeSlot: '1J',  awaySlot: '3GHI_2', date: '2026-07-03', venue: 'Arrowhead Stadium',    city: 'Kansas City' },
-    { id: 'R32-14', homeSlot: '1L',  awaySlot: '3JKL_2', date: '2026-07-03', venue: 'Arrowhead Stadium',    city: 'Kansas City' },
-    { id: 'R32-15', homeSlot: '2A',  awaySlot: '2F',   date: '2026-07-03', venue: 'Mercedes-Benz Stadium', city: 'Atlanta' },
-    { id: 'R32-16', homeSlot: '1H',  awaySlot: '3DEF_2', date: '2026-07-03', venue: 'Mercedes-Benz Stadium', city: 'Atlanta' },
+    { id: 'R32-01', homeSlot: '2A',  awaySlot: '2B',      date: '2026-06-29', time: '18:00', venue: 'SoFi Stadium',             city: 'Inglewood' },
+    { id: 'R32-02', homeSlot: '1E',  awaySlot: '3_ABCDF',  date: '2026-06-29', time: '21:00', venue: 'SoFi Stadium',             city: 'Inglewood' },
+    { id: 'R32-03', homeSlot: '1F',  awaySlot: '2C',      date: '2026-06-30', time: '18:00', venue: "Levi's Stadium",            city: 'Santa Clara' },
+    { id: 'R32-04', homeSlot: '1C',  awaySlot: '2F',      date: '2026-06-30', time: '21:00', venue: "Levi's Stadium",            city: 'Santa Clara' },
+    { id: 'R32-05', homeSlot: '1I',  awaySlot: '3_CDFGH',  date: '2026-06-30', time: '18:00', venue: 'Lumen Field',              city: 'Seattle' },
+    { id: 'R32-06', homeSlot: '2E',  awaySlot: '2I',      date: '2026-06-30', time: '21:00', venue: 'Lumen Field',              city: 'Seattle' },
+    { id: 'R32-07', homeSlot: '1A',  awaySlot: '3_CEFHI',  date: '2026-07-01', time: '18:00', venue: 'Gillette Stadium',         city: 'Foxborough' },
+    { id: 'R32-08', homeSlot: '1L',  awaySlot: '3_EHIJK',  date: '2026-07-01', time: '21:00', venue: 'Gillette Stadium',         city: 'Foxborough' },
+    { id: 'R32-09', homeSlot: '1D',  awaySlot: '3_BEFIJ',  date: '2026-07-01', time: '18:00', venue: 'Lincoln Financial Field',  city: 'Philadelphia' },
+    { id: 'R32-10', homeSlot: '1G',  awaySlot: '3_AEHIJ',  date: '2026-07-01', time: '21:00', venue: 'Lincoln Financial Field',  city: 'Philadelphia' },
+    { id: 'R32-11', homeSlot: '2K',  awaySlot: '2L',      date: '2026-07-02', time: '18:00', venue: 'AT&T Stadium',            city: 'Arlington' },
+    { id: 'R32-12', homeSlot: '1H',  awaySlot: '2J',      date: '2026-07-02', time: '21:00', venue: 'AT&T Stadium',            city: 'Arlington' },
+    { id: 'R32-13', homeSlot: '1B',  awaySlot: '3_EFGIJ',  date: '2026-07-02', time: '18:00', venue: 'Arrowhead Stadium',        city: 'Kansas City' },
+    { id: 'R32-14', homeSlot: '1J',  awaySlot: '2H',      date: '2026-07-02', time: '21:00', venue: 'Arrowhead Stadium',        city: 'Kansas City' },
+    { id: 'R32-15', homeSlot: '1K',  awaySlot: '3_DEIJL',  date: '2026-07-03', time: '18:00', venue: 'Mercedes-Benz Stadium',   city: 'Atlanta' },
+    { id: 'R32-16', homeSlot: '2D',  awaySlot: '2G',      date: '2026-07-03', time: '21:00', venue: 'Mercedes-Benz Stadium',   city: 'Atlanta' },
   ] as const,
-  // R16 pairings: which R32 matches feed into each R16 match
+  // Round of 16 — 8 matches (M89–M96)
   r16: [
-    { id: 'R16-01', feederHome: 'R32-01', feederAway: 'R32-02', date: '2026-07-05', venue: 'SoFi Stadium',         city: 'Inglewood' },
-    { id: 'R16-02', feederHome: 'R32-03', feederAway: 'R32-04', date: '2026-07-05', venue: "Levi's Stadium",        city: 'Santa Clara' },
-    { id: 'R16-03', feederHome: 'R32-05', feederAway: 'R32-06', date: '2026-07-06', venue: 'Lumen Field',           city: 'Seattle' },
-    { id: 'R16-04', feederHome: 'R32-07', feederAway: 'R32-08', date: '2026-07-06', venue: 'Gillette Stadium',      city: 'Foxborough' },
-    { id: 'R16-05', feederHome: 'R32-09', feederAway: 'R32-10', date: '2026-07-06', venue: 'Lincoln Financial Field', city: 'Philadelphia' },
-    { id: 'R16-06', feederHome: 'R32-11', feederAway: 'R32-12', date: '2026-07-06', venue: 'AT&T Stadium',         city: 'Arlington' },
-    { id: 'R16-07', feederHome: 'R32-13', feederAway: 'R32-14', date: '2026-07-07', venue: 'Arrowhead Stadium',    city: 'Kansas City' },
-    { id: 'R16-08', feederHome: 'R32-15', feederAway: 'R32-16', date: '2026-07-07', venue: 'Mercedes-Benz Stadium', city: 'Atlanta' },
+    { id: 'R16-01', feederHome: 'R32-02', feederAway: 'R32-05', date: '2026-07-05', time: '18:00', venue: 'SoFi Stadium',             city: 'Inglewood' },
+    { id: 'R16-02', feederHome: 'R32-01', feederAway: 'R32-03', date: '2026-07-05', time: '21:00', venue: 'SoFi Stadium',             city: 'Inglewood' },
+    { id: 'R16-03', feederHome: 'R32-04', feederAway: 'R32-06', date: '2026-07-06', time: '18:00', venue: "Levi's Stadium",            city: 'Santa Clara' },
+    { id: 'R16-04', feederHome: 'R32-07', feederAway: 'R32-08', date: '2026-07-06', time: '21:00', venue: "Levi's Stadium",            city: 'Santa Clara' },
+    { id: 'R16-05', feederHome: 'R32-11', feederAway: 'R32-12', date: '2026-07-06', time: '18:00', venue: 'Lumen Field',              city: 'Seattle' },
+    { id: 'R16-06', feederHome: 'R32-09', feederAway: 'R32-10', date: '2026-07-06', time: '21:00', venue: 'Lumen Field',              city: 'Seattle' },
+    { id: 'R16-07', feederHome: 'R32-14', feederAway: 'R32-16', date: '2026-07-07', time: '18:00', venue: 'Arrowhead Stadium',        city: 'Kansas City' },
+    { id: 'R16-08', feederHome: 'R32-13', feederAway: 'R32-15', date: '2026-07-07', time: '21:00', venue: 'Arrowhead Stadium',        city: 'Kansas City' },
   ] as const,
-  // Quarterfinals
+  // Quarterfinals — 4 matches (M97–M100)
   qf: [
-    { id: 'QF-01', feederHome: 'R16-01', feederAway: 'R16-02', date: '2026-07-09', venue: 'SoFi Stadium',         city: 'Inglewood' },
-    { id: 'QF-02', feederHome: 'R16-03', feederAway: 'R16-04', date: '2026-07-10', venue: 'Gillette Stadium',      city: 'Foxborough' },
-    { id: 'QF-03', feederHome: 'R16-05', feederAway: 'R16-06', date: '2026-07-10', venue: 'AT&T Stadium',         city: 'Arlington' },
-    { id: 'QF-04', feederHome: 'R16-07', feederAway: 'R16-08', date: '2026-07-11', venue: 'Arrowhead Stadium',    city: 'Kansas City' },
+    { id: 'QF-01', feederHome: 'R16-01', feederAway: 'R16-02', date: '2026-07-09', time: '21:00', venue: 'SoFi Stadium',             city: 'Inglewood' },
+    { id: 'QF-02', feederHome: 'R16-05', feederAway: 'R16-06', date: '2026-07-10', time: '18:00', venue: 'Gillette Stadium',         city: 'Foxborough' },
+    { id: 'QF-03', feederHome: 'R16-03', feederAway: 'R16-04', date: '2026-07-10', time: '21:00', venue: 'AT&T Stadium',            city: 'Arlington' },
+    { id: 'QF-04', feederHome: 'R16-07', feederAway: 'R16-08', date: '2026-07-11', time: '21:00', venue: 'Mercedes-Benz Stadium',   city: 'Atlanta' },
   ] as const,
-  // Semifinals
+  // Semifinals — 2 matches (M101–M102)
   sf: [
-    { id: 'SF-01', feederHome: 'QF-01', feederAway: 'QF-02', date: '2026-07-14', venue: 'SoFi Stadium',   city: 'Inglewood' },
-    { id: 'SF-02', feederHome: 'QF-03', feederAway: 'QF-04', date: '2026-07-15', venue: 'AT&T Stadium',   city: 'Arlington' },
+    { id: 'SF-01', feederHome: 'QF-01', feederAway: 'QF-02', date: '2026-07-14', time: '21:00', venue: 'SoFi Stadium',             city: 'Inglewood' },
+    { id: 'SF-02', feederHome: 'QF-03', feederAway: 'QF-04', date: '2026-07-15', time: '21:00', venue: 'AT&T Stadium',            city: 'Arlington' },
   ] as const,
-  // Third place
-  third_place: { id: '3RD', feederHome: 'SF-01', feederAway: 'SF-02', date: '2026-07-18', venue: 'Hard Rock Stadium', city: 'Miami Gardens' },
-  // Final
-  final: { id: 'FINAL', feederHome: 'SF-01', feederAway: 'SF-02', date: '2026-07-19', venue: 'MetLife Stadium', city: 'East Rutherford' },
+  // Third place (M103)
+  third_place: { id: '3RD', feederHome: 'SF-01', feederAway: 'SF-02', date: '2026-07-18', time: '18:00', venue: 'Hard Rock Stadium',       city: 'Miami Gardens' },
+  // Final (M104)
+  final: { id: 'FINAL', feederHome: 'SF-01', feederAway: 'SF-02', date: '2026-07-19', time: '21:00', venue: 'MetLife Stadium',         city: 'East Rutherford' },
 };
 
-// Third-place pools for bracket slot assignment
+// Third-place pools for R32 bracket slots
+// Each pool: 5 groups → best qualified 3rd-place team from those groups
+// No team faces a side from its own group in R32
 export const THIRD_PLACE_POOLS = {
-  '3ABC_1': { groups: ['A', 'B', 'C'], index: 0, label: 'Melhor 3° de A/B/C' },
-  '3ABC_2': { groups: ['A', 'B', 'C'], index: 1, label: '2° melhor 3° de A/B/C' },
-  '3DEF_1': { groups: ['D', 'E', 'F'], index: 0, label: 'Melhor 3° de D/E/F' },
-  '3DEF_2': { groups: ['D', 'E', 'F'], index: 1, label: '2° melhor 3° de D/E/F' },
-  '3GHI_1': { groups: ['G', 'H', 'I'], index: 0, label: 'Melhor 3° de G/H/I' },
-  '3GHI_2': { groups: ['G', 'H', 'I'], index: 1, label: '2° melhor 3° de G/H/I' },
-  '3JKL_1': { groups: ['J', 'K', 'L'], index: 0, label: 'Melhor 3° de J/K/L' },
-  '3JKL_2': { groups: ['J', 'K', 'L'], index: 1, label: '2° melhor 3° de J/K/L' },
-  '3ADEF_1': { groups: ['A', 'D', 'E', 'F'], index: 0, label: 'Melhor 3° de A/D/E/F' },
+  '3_ABCDF': { groups: ['A', 'B', 'C', 'D', 'F'], label: 'Melhor 3° de A/B/C/D/F' },
+  '3_CDFGH': { groups: ['C', 'D', 'F', 'G', 'H'], label: 'Melhor 3° de C/D/F/G/H' },
+  '3_CEFHI': { groups: ['C', 'E', 'F', 'H', 'I'], label: 'Melhor 3° de C/E/F/H/I' },
+  '3_EHIJK': { groups: ['E', 'H', 'I', 'J', 'K'], label: 'Melhor 3° de E/H/I/J/K' },
+  '3_BEFIJ': { groups: ['B', 'E', 'F', 'I', 'J'], label: 'Melhor 3° de B/E/F/I/J' },
+  '3_AEHIJ': { groups: ['A', 'E', 'H', 'I', 'J'], label: 'Melhor 3° de A/E/H/I/J' },
+  '3_EFGIJ': { groups: ['E', 'F', 'G', 'I', 'J'], label: 'Melhor 3° de E/F/G/I/J' },
+  '3_DEIJL': { groups: ['D', 'E', 'I', 'J', 'L'], label: 'Melhor 3° de D/E/I/J/L' },
 } as const;
 
 export const TIMEZONES = [

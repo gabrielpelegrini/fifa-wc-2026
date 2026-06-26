@@ -7,9 +7,9 @@ import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
 
 const ROUND_LABELS: Record<string, string> = {
-  r32: '32-avos',
-  r16: 'Oitavas',
-  qf: 'Quartas',
+  r32: '32-avos de Final',
+  r16: 'Oitavas de Final',
+  qf: 'Quartas de Final',
   sf: 'Semifinais',
   third_place: '3° Lugar',
   final: 'Final',
@@ -27,6 +27,7 @@ type BracketMatchInfo = {
   venue: string;
   city: string;
   date: string;
+  time?: string;
 };
 
 export default function KnockoutBracket() {
@@ -40,20 +41,22 @@ export default function KnockoutBracket() {
       {!hasKnockoutResults && (
         <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 text-center">
           <p className="text-xs text-yellow-600 dark:text-yellow-400">
-            Projeção baseada na classificação atual da fase de grupos. 
+            Chaveamento oficial FIFA Copa do Mundo 2026.
             Os confrontos serão confirmados após o encerramento de todos os grupos.
           </p>
         </div>
       )}
+      {/* Mobile: list view */}
       <div className="lg:hidden space-y-3">
         <BracketListView bracket={bracket} />
       </div>
+      {/* Desktop: visual bracket */}
       <div className="hidden lg:block overflow-x-auto">
-        <div className="min-w-[1100px] p-4">
-          <div className="flex gap-2 items-stretch">
-            <BracketRound title="32-avos de final" matches={bracket.r32} className="flex-shrink-0" />
-            <BracketRound title="Oitavas" matches={bracket.r16} className="flex-shrink-0" />
-            <BracketRound title="Quartas" matches={bracket.qf} className="flex-shrink-0" />
+        <div className="min-w-[1200px] p-4">
+          <div className="flex gap-3 items-stretch">
+            <BracketRound title="32-avos de Final" matches={bracket.r32} className="flex-shrink-0" />
+            <BracketRound title="Oitavas de Final" matches={bracket.r16} className="flex-shrink-0" />
+            <BracketRound title="Quartas de Final" matches={bracket.qf} className="flex-shrink-0" />
             <div className="flex flex-col gap-2 flex-shrink-0 w-[220px]">
               <BracketRound title="Semifinais" matches={bracket.sf} />
               <BracketSingleMatch match={bracket.thirdPlace} label="3° Lugar" />
@@ -73,7 +76,7 @@ function BracketRound({
   matches: BracketMatchInfo[];
   className?: string;
 }) {
-  const spacing = matches.length <= 2 ? 'gap-16' : matches.length <= 4 ? 'gap-8' : matches.length <= 8 ? 'gap-4' : 'gap-2';
+  const spacing = matches.length <= 2 ? 'gap-16' : matches.length <= 4 ? 'gap-8' : matches.length <= 8 ? 'gap-4' : 'gap-1';
   return (
     <div className={cn('w-[220px]', className)}>
       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 text-center">{title}</h3>
@@ -164,6 +167,7 @@ function BracketListView({
         <div key={round.title} className="rounded-lg border bg-card overflow-hidden">
           <div className="bg-primary/10 px-3 py-1.5">
             <span className="font-bold text-xs">{round.title}</span>
+            <span className="text-xs text-muted-foreground ml-2">({round.matches.length} jogos)</span>
           </div>
           <div className="divide-y">
             {round.matches.map(m => (

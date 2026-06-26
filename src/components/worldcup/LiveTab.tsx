@@ -71,7 +71,7 @@ export default function LiveTab() {
     }
 
     return { liveList: live, nextUpList: nextUp, recentList: recent };
-  }, [matches]);
+  }, [matches, timezone]);
 
   const hasLive = liveList.length > 0;
 

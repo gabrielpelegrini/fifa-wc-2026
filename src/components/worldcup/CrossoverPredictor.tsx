@@ -181,28 +181,29 @@ function PathCard({
 }
 
 function findThirdPlacePool(groupId: string, rank: number): string | null {
-  // Map group to its pool
+  // Map each group to the R32 third-place pool slots it belongs to
+  // Each pool has 5 groups; each group appears in multiple pools
+  // FIFA uses a 495-row lookup table for exact assignment
   const groupToPool: Record<string, string[]> = {
-    'A': ['3ABC_1', '3ABC_2', '3ADEF_1'],
-    'B': ['3ABC_1', '3ABC_2'],
-    'C': ['3ABC_1', '3ABC_2'],
-    'D': ['3DEF_1', '3DEF_2', '3ADEF_1'],
-    'E': ['3DEF_1', '3DEF_2', '3ADEF_1'],
-    'F': ['3DEF_1', '3DEF_2', '3ADEF_1'],
-    'G': ['3GHI_1', '3GHI_2'],
-    'H': ['3GHI_1', '3GHI_2'],
-    'I': ['3GHI_1', '3GHI_2'],
-    'J': ['3JKL_1', '3JKL_2'],
-    'K': ['3JKL_1', '3JKL_2'],
-    'L': ['3JKL_1', '3JKL_2'],
+    'A': ['3_ABCDF', '3_CEFHI', '3_AEHIJ'],
+    'B': ['3_ABCDF', '3_BEFIJ'],
+    'C': ['3_ABCDF', '3_CDFGH', '3_CEFHI'],
+    'D': ['3_ABCDF', '3_CDFGH', '3_BEFIJ', '3_DEIJL'],
+    'E': ['3_CEFHI', '3_EHIJK', '3_BEFIJ', '3_AEHIJ', '3_EFGIJ', '3_DEIJL'],
+    'F': ['3_ABCDF', '3_CDFGH', '3_CEFHI', '3_BEFIJ', '3_EFGIJ'],
+    'G': ['3_CDFGH', '3_AEHIJ', '3_EFGIJ'],
+    'H': ['3_CDFGH', '3_CEFHI', '3_EHIJK', '3_AEHIJ'],
+    'I': ['3_CDFGH', '3_CEFHI', '3_EHIJK', '3_BEFIJ', '3_AEHIJ', '3_EFGIJ', '3_DEIJL'],
+    'J': ['3_EHIJK', '3_BEFIJ', '3_AEHIJ', '3_EFGIJ', '3_DEIJL'],
+    'K': ['3_EHIJK', '3_DEIJL'],
+    'L': ['3_EHIJK', '3_DEIJL'],
   };
 
   const pools = groupToPool[groupId];
   if (!pools) return null;
 
-  // The rank determines which index (0 = best in pool). But the pool's index
-  // depends on the global ranking of thirds.
-  // For display purposes, we'll just show the first pool slot.
+  // For display: show the first pool this group belongs to.
+  // The actual assignment depends on FIFA's 495-row lookup table.
   if (rank <= 8) return pools[0];
   return null;
 }

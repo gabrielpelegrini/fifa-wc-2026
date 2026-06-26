@@ -1,6 +1,6 @@
 import { TeamStanding, KnockoutMatch, ThirdPlaceEntry } from '@/data/types';
 import { BRACKET_CONFIG } from '@/data/worldcup';
-import { resolveThirdPlaceSlot, getThirdPlacePoolLabel } from './thirdPlaceRanking';
+import { resolveAllThirdPlaceSlots, getThirdPlacePoolLabel } from './thirdPlaceRanking';
 
 export interface ResolvedBracket {
   r32: KnockoutMatch[];
@@ -32,7 +32,7 @@ function allGroupsComplete(allStandings: Map<string, TeamStanding[]>): boolean {
 function resolveSlotToTeamId(
   slot: string,
   allStandings: Map<string, TeamStanding[]>,
-  thirds: ThirdPlaceEntry[]
+  thirdPlaceMap: Map<string, string>
 ): { teamId: string | null; label: string } {
   // Group winner: 1A, 1B, ...
   // Only resolve when group is complete (all 3 matchdays played)
@@ -58,13 +58,13 @@ function resolveSlotToTeamId(
     return { teamId: runner?.teamId || null, label: slot };
   }
 
-  // Third place pool: 3ABC_1, 3DEF_2, etc.
+  // Third place pool: 3_ABCDF, 3_CDFGH, etc.
   // Only resolve when ALL groups are complete (third-place ranking is definitive)
-  if (/^3/.test(slot)) {
+  if (/^3_/.test(slot)) {
     if (!allGroupsComplete(allStandings)) {
       return { teamId: null, label: getThirdPlacePoolLabel(slot) };
     }
-    const teamId = resolveThirdPlaceSlot(slot, allStandings, thirds);
+    const teamId = thirdPlaceMap.get(slot) ?? null;
     return { teamId, label: getThirdPlacePoolLabel(slot) };
   }
 
@@ -76,10 +76,15 @@ export function resolveBracket(
   thirds: ThirdPlaceEntry[],
   knockoutResults: Map<string, { home: number; away: number }>
 ): ResolvedBracket {
+  // Pre-resolve all 8 third-place slots at once (prevents double-assignment)
+  const thirdPlaceMap = allGroupsComplete(allStandings)
+    ? resolveAllThirdPlaceSlots(allStandings, thirds)
+    : new Map<string, string>();
+
   // Resolve R32
   const r32: KnockoutMatch[] = BRACKET_CONFIG.r32.map(cfg => {
-    const home = resolveSlotToTeamId(cfg.homeSlot, allStandings, thirds);
-    const away = resolveSlotToTeamId(cfg.awaySlot, allStandings, thirds);
+    const home = resolveSlotToTeamId(cfg.homeSlot, allStandings, thirdPlaceMap);
+    const away = resolveSlotToTeamId(cfg.awaySlot, allStandings, thirdPlaceMap);
     const result = knockoutResults.get(cfg.id);
     return {
       id: cfg.id,
@@ -91,6 +96,7 @@ export function resolveBracket(
       homeScore: result?.home ?? null,
       awayScore: result?.away ?? null,
       date: cfg.date,
+      time: cfg.time,
       venue: cfg.venue,
       city: cfg.city,
     };
@@ -127,6 +133,7 @@ export function resolveBracket(
       homeScore: result?.home ?? null,
       awayScore: result?.away ?? null,
       date: cfg.date,
+      time: cfg.time,
       venue: cfg.venue,
       city: cfg.city,
     };
@@ -162,6 +169,7 @@ export function resolveBracket(
       homeScore: result?.home ?? null,
       awayScore: result?.away ?? null,
       date: cfg.date,
+      time: cfg.time,
       venue: cfg.venue,
       city: cfg.city,
     };
@@ -197,6 +205,7 @@ export function resolveBracket(
       homeScore: result?.home ?? null,
       awayScore: result?.away ?? null,
       date: cfg.date,
+      time: cfg.time,
       venue: cfg.venue,
       city: cfg.city,
     };
@@ -228,6 +237,7 @@ export function resolveBracket(
     homeScore: thirdPlaceResult?.home ?? null,
     awayScore: thirdPlaceResult?.away ?? null,
     date: BRACKET_CONFIG.third_place.date,
+    time: BRACKET_CONFIG.third_place.time,
     venue: BRACKET_CONFIG.third_place.venue,
     city: BRACKET_CONFIG.third_place.city,
   };
@@ -256,6 +266,7 @@ export function resolveBracket(
     homeScore: finalResult?.home ?? null,
     awayScore: finalResult?.away ?? null,
     date: BRACKET_CONFIG.final.date,
+    time: BRACKET_CONFIG.final.time,
     venue: BRACKET_CONFIG.final.venue,
     city: BRACKET_CONFIG.final.city,
   };

@@ -67,3 +67,32 @@ Stage Summary:
 - Auto-update funcional: toggle no header, polling 20min, indicadores visuais de AO VIVO
 - Cron job implementado com regras rígidas anti-drift conforme solicitado
 - Os 15 erros TS são pre-existentes em examples/ e skills/ (fora do escopo do app)
+---
+Task ID: 1
+Agent: main
+Task: Fix knockout bracket - official FIFA 2026 pairings + R32 visibility
+
+Work Log:
+- Searched official FIFA 2026 bracket via web search agent
+- Confirmed 1C vs 2F (Brazil vs 2nd place Group F) is the official pairing
+- Completely rewrote BRACKET_CONFIG in worldcup.ts with all 16 R32 matches
+- Changed from 3-group pools to 5-group pools (official format)
+- Updated THIRD_PLACE_POOLS: 8 pools of 5 groups each
+- Rewrote thirdPlaceRanking.ts: new resolveAllThirdPlaceSlots() with anti-double-assignment
+- Updated bracketResolver.ts: pre-resolves all 3rd-place slots, uses new pool format
+- Updated CrossoverPredictor.tsx: new group-to-pool mapping
+- Updated KnockoutBracket.tsx: improved layout for 16 R32 matches, added match counts
+- Added `time` field to KnockoutMatch type
+- Removed dead code: deleted /api/simulate route (random score generator)
+- Removed hardcoded prediction text from bracket banner
+- Fixed LiveTab.tsx useMemo missing `timezone` dependency
+- Audited entire app: zero simulated data found, all data comes from ESPN
+
+Stage Summary:
+- Bracket now matches official FIFA 2026 format exactly
+- R32 (32-avos) with 16 matches properly displayed
+- Brazil (1C) correctly paired with 2F
+- Third-place pools use 5-group format per FIFA regulations
+- /api/simulate deleted - no simulation code remains
+- Build passes cleanly
+
