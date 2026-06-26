@@ -38,14 +38,6 @@ export default function LiveTab() {
       })
       .slice(0, 8);
 
-    // Next time slot from upcoming matches
-    // Only show matches from TODAY (user timezone) or later
-    // This avoids showing old matches that ESPN hasn't updated
-    const todayLocal = new Intl.DateTimeFormat('sv-SE', {
-      timeZone: timezone,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(new Date());
-
     // Show ALL upcoming matches from TODAY onwards (user timezone).
     // Finished/live games are already in their own sections.
     // Uses >= so if today's games are all finished, tomorrow's games still show.
