@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { useLiveScores } from '@/hooks/useLiveScores';
 import { getTeamName } from '@/lib/standings';
-import { formatTime, formatFullDateTime } from '@/lib/dateUtils';
+import { formatTime, formatFullDateTime, getLocalDate } from '@/lib/dateUtils';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
 import { Clock, MapPin, Zap, RefreshCw, Loader2 } from 'lucide-react';
@@ -38,15 +38,17 @@ export default function LiveTab() {
       })
       .slice(0, 8);
 
-    // Next time slot from truly upcoming FUTURE matches
-    // (filter out past matches that ESPN didn't mark as finished)
-    const now = Date.now();
+    // Next time slot from upcoming matches
+    // Only show matches from TODAY (user timezone) or later
+    // This avoids showing old matches that ESPN hasn't updated
+    const todayLocal = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+
     const upcomingFuture = upcoming.filter(m => {
-      const [h, min] = m.time.split(':').map(Number);
-      const matchUTC = new Date(
-        `${m.date}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00Z`
-      ).getTime();
-      return matchUTC > now;
+      const localDate = getLocalDate(m.date, m.time, timezone);
+      return localDate >= todayLocal;
     });
 
     const upcomingSorted = upcomingFuture.sort((a, b) => {

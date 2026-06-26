@@ -146,9 +146,9 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           homeScore: s.homeScore,
           awayScore: s.awayScore,
           status: s.status,
-          // Only update venue/city from ESPN — NOT date/time,
-          // because ESPN returns UTC dates which would shift
-          // matches to wrong days in the calendar
+          // Update time/venue/city from ESPN (all UTC-based or venue info)
+          // Do NOT update date — ESPN UTC dates can shift matches to wrong days
+          ...(s.espnTime && { time: s.espnTime }),
           ...(s.espnVenue && { venue: s.espnVenue }),
           ...(s.espnCity && { city: s.espnCity }),
         };
