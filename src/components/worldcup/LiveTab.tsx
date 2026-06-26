@@ -158,8 +158,8 @@ export default function LiveTab() {
         </section>
       )}
 
-      {/* NEXT UP — if no live matches */}
-      {!hasLive && nextUpList.length > 0 && (
+      {/* NEXT UP — always show if there are upcoming matches */}
+      {nextUpList.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
