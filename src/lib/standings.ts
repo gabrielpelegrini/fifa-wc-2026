@@ -112,10 +112,10 @@ function applyTiebreakers(
     for (const m of matches) {
       if (m.group !== groupId) continue;
       if (!tiedIds.has(m.homeTeam) || !tiedIds.has(m.awayTeam)) continue;
-      if (m.homeScore === null || m.awayScore === null) continue;
+      if (m.homeScore == null || m.awayScore == null) continue;
 
-      const hs = m.homeScore;
-      const as = m.awayScore;
+      const hs: number = m.homeScore!;
+      const as: number = m.awayScore!;
 
       h2hPoints.set(m.homeTeam, (h2hPoints.get(m.homeTeam) || 0) + (hs > as ? 3 : hs === as ? 1 : 0));
       h2hPoints.set(m.awayTeam, (h2hPoints.get(m.awayTeam) || 0) + (as > hs ? 3 : as === hs ? 1 : 0));
