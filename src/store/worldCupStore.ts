@@ -4,6 +4,7 @@ import { GROUP_MATCHES, BRACKET_CONFIG } from '@/data/worldcup';
 import { calculateGroupStandings } from '@/lib/standings';
 import { calculateThirdPlaceRanking } from '@/lib/thirdPlaceRanking';
 import { resolveBracket } from '@/lib/bracketResolver';
+import { ESPN_TO_TEAM } from '@/lib/espnMapping';
 
 interface KnockoutResult {
   home: number;
@@ -23,6 +24,24 @@ interface ESPNMatchScore {
   espnCity?: string;
 }
 
+export interface KnockoutLiveEntry {
+  status: 'upcoming' | 'live' | 'finished';
+  homeScore: number | null;
+  awayScore: number | null;
+  minute?: number;
+  displayClock?: string;
+}
+
+export interface RawKnockoutEvent {
+  homeAbbr: string;
+  awayAbbr: string;
+  homeScore: string;
+  awayScore: string;
+  statusName: string;
+  clock?: number;
+  displayClock?: string;
+}
+
 interface WorldCupState {
   matches: MatchDef[];
   knockoutResults: Map<string, KnockoutResult>;
@@ -38,6 +57,7 @@ interface WorldCupState {
 
   lastPollTime: string | null;
   liveMatches: Record<string, number>;
+  knockoutLiveInfo: Record<string, KnockoutLiveEntry>;
   isRefreshing: boolean;
 
   setScore: (matchId: string, home: number | null, away: number | null) => void;
@@ -52,6 +72,7 @@ interface WorldCupState {
   setLastPollTime: (t: string | null) => void;
   setLiveMatches: (m: Record<string, number>) => void;
   bulkUpdateFromESPN: (scores: Record<string, ESPNMatchScore>) => void;
+  updateKnockoutLive: (events: RawKnockoutEvent[]) => void;
   refreshNow: () => Promise<void>;
 }
 
@@ -90,6 +111,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
 
     lastPollTime: null,
     liveMatches: {},
+    knockoutLiveInfo: {},
     isRefreshing: false,
 
     setLastPollTime: (t: string | null) => set({ lastPollTime: t }),
@@ -164,6 +186,80 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       set({ matches: newMatches, liveMatches: newLiveMatches, ...computed });
     },
 
+    updateKnockoutLive: (events) => {
+      const bracket = get().bracket;
+      if (!bracket || events.length === 0) return;
+
+      // Flatten all bracket matches for searching
+      const allBracket = [
+        ...bracket.r32, ...bracket.r16, ...bracket.qf, ...bracket.sf,
+        bracket.thirdPlace, bracket.final,
+      ];
+
+      const newInfo: Record<string, KnockoutLiveEntry> = {};
+      const newKnockoutLive: Record<string, number> = {};
+
+      for (const evt of events) {
+        const homeId = ESPN_TO_TEAM[evt.homeAbbr];
+        const awayId = ESPN_TO_TEAM[evt.awayAbbr];
+        if (!homeId || !awayId) continue;
+
+        // Find matching bracket match (home/away order may differ)
+        const match = allBracket.find(m =>
+          (m.homeTeam === homeId && m.awayTeam === awayId) ||
+          (m.homeTeam === awayId && m.awayTeam === homeId)
+        );
+        if (!match) continue;
+
+        // Classify status
+        let status: 'upcoming' | 'live' | 'finished' = 'upcoming';
+        if (evt.statusName === 'STATUS_FULL_TIME' || evt.statusName === 'STATUS_POSTPONED') status = 'finished';
+        else if (
+          evt.statusName === 'STATUS_IN_PROGRESS' ||
+          evt.statusName === 'STATUS_HALFTIME' ||
+          evt.statusName === 'STATUS_1ST_PERIOD' ||
+          evt.statusName === 'STATUS_2ND_PERIOD' ||
+          evt.statusName === 'STATUS_EXTRA_TIME' ||
+          evt.statusName === 'STATUS_PENALTY_SHOOTOUT'
+        ) status = 'live';
+
+        const isLiveOrFinished = status === 'live' || status === 'finished';
+        const evtHomeScore = isLiveOrFinished ? (parseInt(evt.homeScore, 10) || 0) : null;
+        const evtAwayScore = isLiveOrFinished ? (parseInt(evt.awayScore, 10) || 0) : null;
+
+        // Align scores to our bracket's home/away
+        let homeScore = evtHomeScore;
+        let awayScore = evtAwayScore;
+        if (homeId === match.awayTeam) {
+          const tmp = homeScore;
+          homeScore = awayScore;
+          awayScore = tmp;
+        }
+
+        // Minute for live matches
+        const minute = status === 'live' && evt.clock
+          ? Math.floor(evt.clock / 60)
+          : undefined;
+
+        newInfo[match.id] = {
+          status,
+          homeScore,
+          awayScore,
+          minute,
+          displayClock: evt.displayClock,
+        };
+
+        if (status === 'live' && minute != null) {
+          newKnockoutLive[match.id] = minute;
+        }
+      }
+
+      set({
+        knockoutLiveInfo: newInfo,
+        liveMatches: { ...get().liveMatches, ...newKnockoutLive },
+      });
+    },
+
     refreshNow: async () => {
       set({ isRefreshing: true });
       try {
@@ -174,6 +270,9 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         const data = await res.json();
         if (data.scores) {
           get().bulkUpdateFromESPN(data.scores);
+        }
+        if (data.knockoutEvents && data.knockoutEvents.length > 0) {
+          get().updateKnockoutLive(data.knockoutEvents);
         }
         get().setLastPollTime(new Date().toISOString());
       } catch { /* silently fail */ }

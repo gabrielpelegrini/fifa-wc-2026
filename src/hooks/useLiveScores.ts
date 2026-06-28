@@ -15,6 +15,15 @@ interface ESPNMatchScore {
 interface LiveScoresResponse {
   serverTime: string;
   scores: Record<string, ESPNMatchScore>;
+  knockoutEvents?: Array<{
+    homeAbbr: string;
+    awayAbbr: string;
+    homeScore: string;
+    awayScore: string;
+    statusName: string;
+    clock?: number;
+    displayClock?: string;
+  }>;
   source: string;
 }
 
@@ -32,6 +41,7 @@ export function useLiveScores() {
   const [fastMode, setFastMode] = useState(false);
 
   const bulkUpdateFromESPN = useWorldCupStore(s => s.bulkUpdateFromESPN);
+  const updateKnockoutLive = useWorldCupStore(s => s.updateKnockoutLive);
   const lastPollTime = useWorldCupStore(s => s.lastPollTime);
   const setLastPollTime = useWorldCupStore(s => s.setLastPollTime);
   const isRefreshing = useWorldCupStore(s => s.isRefreshing);
@@ -50,12 +60,16 @@ export function useLiveScores() {
         bulkUpdateFromESPN(data.scores);
       }
 
+      if (data.knockoutEvents && data.knockoutEvents.length > 0) {
+        updateKnockoutLive(data.knockoutEvents);
+      }
+
       setLastPollTime(new Date().toISOString());
       firstPollDone.current = true;
     } catch {
       // Silently fail - polling will retry
     }
-  }, [bulkUpdateFromESPN, setLastPollTime]);
+  }, [bulkUpdateFromESPN, updateKnockoutLive, setLastPollTime]);
 
   // Restart interval when fastMode changes
   useEffect(() => {

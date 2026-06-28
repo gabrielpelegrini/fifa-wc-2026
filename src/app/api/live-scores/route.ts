@@ -53,6 +53,18 @@ const GROUP_STAGE_DATES = [
   '20260626', '20260627',
 ];
 
+// ── Raw knockout event (non-group, for client-side bracket matching) ──
+
+interface RawKnockoutEvent {
+  homeAbbr: string;
+  awayAbbr: string;
+  homeScore: string;
+  awayScore: string;
+  statusName: string;
+  clock?: number;
+  displayClock?: string;
+}
+
 // ── Build match lookup ─────────────────────────────────────────────────
 
 function getMatchLookup(): Map<string, string> {
@@ -112,13 +124,23 @@ export async function GET(request: Request) {
       });
     }
 
+    // Build full date list: group stage + dynamic window around today for knockout
+    const fetchDates = new Set(GROUP_STAGE_DATES);
+    const nowUtc = new Date();
+    for (let offset = -2; offset <= 7; offset++) {
+      const d = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + offset));
+      fetchDates.add(d.toISOString().slice(0, 10).replace(/-/g, ''));
+    }
+    const ALL_DATES = Array.from(fetchDates).sort();
+
     // Fetch all dates in parallel
     const allEvents = await Promise.all(
-      GROUP_STAGE_DATES.map(d => fetchESPNDate(d))
+      ALL_DATES.map(d => fetchESPNDate(d))
     );
 
     const lookup = getMatchLookup();
     const scores: Record<string, MatchScore> = {};
+    const rawKnockout: RawKnockoutEvent[] = [];
 
     for (const events of allEvents) {
       for (const event of events) {
@@ -127,7 +149,23 @@ export async function GET(request: Request) {
 
         // Extract group
         const group = comp.altGameNote ? extractGroup(comp.altGameNote) : null;
-        if (!group) continue;
+        if (!group) {
+          // Non-group event — collect as potential knockout match
+          const hc = comp.competitors.find(c => c.homeAway === 'home');
+          const ac = comp.competitors.find(c => c.homeAway === 'away');
+          if (hc && ac) {
+            rawKnockout.push({
+              homeAbbr: hc.team.abbreviation,
+              awayAbbr: ac.team.abbreviation,
+              homeScore: hc.score,
+              awayScore: ac.score,
+              statusName: comp.status.type.name,
+              clock: comp.status.clock,
+              displayClock: comp.status.displayClock,
+            });
+          }
+          continue;
+        }
 
         // Get team IDs from ESPN abbreviations
         const homeComp = comp.competitors.find(c => c.homeAway === 'home');
@@ -208,8 +246,9 @@ export async function GET(request: Request) {
     return NextResponse.json({
       serverTime: new Date().toISOString(),
       scores,
+      knockoutEvents: rawKnockout,
       source: 'espn',
-      _debug: { total: Object.keys(scores).length, finished: finishedCount, live: liveCount },
+      _debug: { total: Object.keys(scores).length, finished: finishedCount, live: liveCount, knockout: rawKnockout.length },
       pollIntervalMs: 5 * 60 * 1000,
     });
   } catch (error) {

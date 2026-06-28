@@ -50,7 +50,7 @@ function formatSlotLabel(slot: string): string {
 }
 
 export default function LiveTab() {
-  const { matches, bracket, timezone, liveMatches, refreshNow } = useWorldCupStore();
+  const { matches, bracket, timezone, liveMatches, knockoutLiveInfo, refreshNow } = useWorldCupStore();
   const { poll, lastPollTime, fastMode, toggleFastMode, isRefreshing } = useLiveScores();
 
   // ── Build unified match list (group + knockout) ────────────────
@@ -88,6 +88,8 @@ export default function LiveTab() {
       ] as const;
 
       for (const m of allKnockout) {
+        // Check if ESPN has live/finished info for this knockout match
+        const koInfo = knockoutLiveInfo[m.id];
         const hasResult = m.homeScore !== null && m.awayScore !== null;
         list.push({
           id: m.id,
@@ -100,15 +102,15 @@ export default function LiveTab() {
           venue: m.venue,
           city: m.city,
           roundLabel: ROUND_LABELS[m.round] || m.round,
-          homeScore: m.homeScore,
-          awayScore: m.awayScore,
-          status: hasResult ? 'finished' : 'upcoming',
+          homeScore: koInfo?.homeScore ?? m.homeScore,
+          awayScore: koInfo?.awayScore ?? m.awayScore,
+          status: koInfo?.status ?? (hasResult ? 'finished' : 'upcoming'),
         });
       }
     }
 
     return list;
-  }, [matches, bracket]);
+  }, [matches, bracket, knockoutLiveInfo]);
 
   // ── Classify into live / upcoming / finished ────────────────────
   const { liveList, nextUpList, recentList } = useMemo(() => {
