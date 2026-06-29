@@ -23,15 +23,15 @@ const ROUND_LABELS: Record<string, string> = {
 // ── Unified match format for LiveTab ───────────────────────────────
 interface DisplayMatch {
   id: string;
-  homeTeamId: string | null;   // team ID (for FlagIcon), null if unresolved
+  homeTeamId: string | null;
   awayTeamId: string | null;
-  homeLabel: string;           // team name OR slot label
+  homeLabel: string;
   awayLabel: string;
   date: string;
   time: string;
   venue: string;
   city: string;
-  roundLabel: string;          // "Grupo A" or "32 Avos" etc.
+  roundLabel: string;
   homeScore: number | null;
   awayScore: number | null;
   status: 'upcoming' | 'live' | 'finished';
@@ -88,7 +88,6 @@ export default function LiveTab() {
       ] as const;
 
       for (const m of allKnockout) {
-        // Check if ESPN has live/finished info for this knockout match
         const koInfo = knockoutLiveInfo[m.id];
         const hasResult = m.homeScore !== null && m.awayScore !== null;
         list.push({
@@ -137,7 +136,7 @@ export default function LiveTab() {
       })
       .slice(0, 8);
 
-    // Show ALL upcoming matches from TODAY onwards (user timezone).
+    // Show ONLY today's upcoming matches (user timezone)
     const todayLocal = new Intl.DateTimeFormat('sv-SE', {
       timeZone: timezone,
       year: 'numeric', month: '2-digit', day: '2-digit',
@@ -146,7 +145,7 @@ export default function LiveTab() {
     const upcomingSorted = upcoming
       .filter(m => {
         const localDate = getLocalDate(m.date, m.time, timezone);
-        return localDate >= todayLocal;
+        return localDate === todayLocal;
       })
       .sort((a, b) => {
         const da = `${a.date}T${a.time}`;
@@ -165,6 +164,16 @@ export default function LiveTab() {
     const d = new Date(lastPollTime);
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }, [lastPollTime]);
+
+  // Today's date label
+  const todayLabel = useMemo(() => {
+    return new Date().toLocaleDateString('pt-BR', {
+      timeZone: timezone,
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+    });
+  }, [timezone]);
 
   return (
     <div className="space-y-6">
@@ -205,8 +214,8 @@ export default function LiveTab() {
 
         {lastPollDisplay && (
           <span className="text-[10px] text-muted-foreground hidden sm:inline">
-            \u00DAltima atualiza\u00E7\u00E3o: {lastPollDisplay}
-            {fastMode && <span className="text-orange-400 ml-1">\u00B7 30s</span>}
+            {`Última atualização: ${lastPollDisplay}`}
+            {fastMode && <span className="text-orange-400 ml-1">{'\u00B7 30s'}</span>}
           </span>
         )}
       </div>
@@ -244,13 +253,13 @@ export default function LiveTab() {
         </section>
       )}
 
-      {/* NEXT UP */}
+      {/* NEXT UP — today only */}
       {nextUpList.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Pr\u00F3ximos Jogos</h2>
-            <span className="text-[10px] text-muted-foreground">({nextUpList.length})</span>
+            <span className="text-[10px] text-muted-foreground capitalize">({todayLabel})</span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {nextUpList.map(m => (
@@ -273,11 +282,11 @@ export default function LiveTab() {
 
       {!hasLive && nextUpList.length === 0 && (
         <div className="text-center py-16">
-          <p className="text-4xl mb-3">\u26BD</p>
-          <p className="text-lg font-semibold">Nenhum jogo pr\u00F3ximo</p>
+          <p className="text-4xl mb-3">{'\u26BD'}</p>
+          <p className="text-lg font-semibold">Nenhum jogo hoje</p>
           <p className="text-sm text-muted-foreground mt-1">
             {recentList.length > 0
-              ? 'Todos os pr\u00F3ximos jogos ainda n\u00E3o come\u00E7aram. Confira os resultados abaixo.'
+              ? 'N\u00E3o h\u00E1 jogos agendados para hoje. Confira os resultados abaixo.'
               : 'Carregando dados dos jogos...'}
           </p>
         </div>
@@ -339,7 +348,7 @@ function LiveMatchCard({
           <span className="text-sm font-medium truncate">{homeLabel}</span>
         </div>
         <div className="text-xl font-bold text-red-300 tabular-nums shrink-0">
-          {homeScore} \u00D7 {awayScore}
+          {`${homeScore} \u00D7 ${awayScore}`}
         </div>
         <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
           <span className="text-sm font-medium truncate">{awayLabel}</span>
@@ -348,7 +357,7 @@ function LiveMatchCard({
       </div>
       <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
         <MapPin className="h-3 w-3" />
-        {venue} \u00B7 {city}
+        {`${venue} \u00B7 ${city}`}
       </div>
     </div>
   );
@@ -386,7 +395,7 @@ function UpcomingMatchCard({
       </div>
       <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
         <MapPin className="h-3 w-3" />
-        {venue} \u00B7 {city}
+        {`${venue} \u00B7 ${city}`}
       </div>
     </div>
   );
@@ -418,7 +427,7 @@ function FinishedMatchCard({
           <span className="text-sm truncate">{homeLabel}</span>
         </div>
         <span className="text-lg font-bold text-muted-foreground tabular-nums shrink-0">
-          {homeScore} \u00D7 {awayScore}
+          {`${homeScore} \u00D7 ${awayScore}`}
         </span>
         <div className={cn('flex items-center gap-2 flex-1 min-w-0 justify-end', !homeWon && !isDraw && 'font-semibold')}>
           <span className="text-sm truncate">{awayLabel}</span>
@@ -427,7 +436,7 @@ function FinishedMatchCard({
       </div>
       <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
         <MapPin className="h-3 w-3" />
-        {venue} \u00B7 {city}
+        {`${venue} \u00B7 ${city}`}
       </div>
     </div>
   );

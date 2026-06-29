@@ -198,6 +198,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
 
       const newInfo: Record<string, KnockoutLiveEntry> = {};
       const newKnockoutLive: Record<string, number> = {};
+      const finishedKO: Array<{ id: string; home: number; away: number }> = [];
 
       for (const evt of events) {
         const homeId = ESPN_TO_TEAM[evt.homeAbbr];
@@ -252,12 +253,27 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         if (status === 'live' && minute != null) {
           newKnockoutLive[match.id] = minute;
         }
+
+        // Collect finished results for bracket auto-resolution
+        if (status === 'finished' && homeScore !== null && awayScore !== null) {
+          finishedKO.push({ id: match.id, home: homeScore, away: awayScore });
+        }
       }
 
       set({
         knockoutLiveInfo: newInfo,
         liveMatches: { ...get().liveMatches, ...newKnockoutLive },
       });
+
+      // Auto-update knockout bracket with finished results so winners advance
+      if (finishedKO.length > 0) {
+        const newKR = new Map(get().knockoutResults);
+        for (const r of finishedKO) {
+          newKR.set(r.id, { home: r.home, away: r.away });
+        }
+        const computed = computeAll(get().matches, newKR);
+        set({ knockoutResults: newKR, ...computed });
+      }
     },
 
     refreshNow: async () => {
