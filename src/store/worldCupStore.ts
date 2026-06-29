@@ -187,14 +187,40 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     },
 
     updateKnockoutLive: (events) => {
-      const bracket = get().bracket;
+      const { bracket, allStandings } = get();
       if (!bracket || events.length === 0) return;
 
-      // Flatten all bracket matches for searching
-      const allBracket = [
-        ...bracket.r32, ...bracket.r16, ...bracket.qf, ...bracket.sf,
-        bracket.thirdPlace, bracket.final,
-      ];
+      // Build a function to resolve a slot to teamId using current standings
+      const slotToTeam = (slot: string): string | null => {
+        const m = slot.match(/^([12])([A-L])$/);
+        if (m) {
+          const pos = parseInt(m[1]); // 1 or 2
+          const grp = m[2];
+          const sts = allStandings.get(grp);
+          if (!sts) return null;
+          const found = sts.find(s => s.position === pos);
+          return found?.teamId ?? null;
+        }
+        return null;
+      };
+
+      // Build a flat list of ALL bracket configs with their match objects
+      // Each entry: { id, homeSlot, awaySlot, homeTeam, awayTeam, matchObj }
+      type BracketEntry = {
+        id: string;
+        homeSlot: string;
+        awaySlot: string;
+        homeTeam: string | null;
+        awayTeam: string | null;
+      };
+
+      const allEntries: BracketEntry[] = [];
+      for (const m of bracket.r32) allEntries.push(m);
+      for (const m of bracket.r16) allEntries.push(m);
+      for (const m of bracket.qf) allEntries.push(m);
+      for (const m of bracket.sf) allEntries.push(m);
+      allEntries.push(bracket.thirdPlace);
+      allEntries.push(bracket.final);
 
       const newInfo: Record<string, KnockoutLiveEntry> = {};
       const newKnockoutLive: Record<string, number> = {};
@@ -205,12 +231,37 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         const awayId = ESPN_TO_TEAM[evt.awayAbbr];
         if (!homeId || !awayId) continue;
 
-        // Find matching bracket match (home/away order may differ)
-        const match = allBracket.find(m =>
-          (m.homeTeam === homeId && m.awayTeam === awayId) ||
-          (m.homeTeam === awayId && m.awayTeam === homeId)
+        // Find matching bracket entry
+        let matchedEntry: BracketEntry | undefined;
+        let isReversed = false;
+
+        // Method 1: Match by resolved team names (works when groups are complete)
+        matchedEntry = allEntries.find(e =>
+          (e.homeTeam === homeId && e.awayTeam === awayId) ||
+          (e.homeTeam === awayId && e.awayTeam === homeId)
         );
-        if (!match) continue;
+        if (matchedEntry) {
+          isReversed = matchedEntry.homeTeam === awayId;
+        }
+
+        // Method 2: For R32, match by resolving slots from current standings
+        // This works even when the bracket hasn't re-resolved yet
+        if (!matchedEntry) {
+          for (const cfg of BRACKET_CONFIG.r32) {
+            const slotHome = slotToTeam(cfg.homeSlot);
+            const slotAway = slotToTeam(cfg.awaySlot);
+            if (slotHome && slotAway &&
+              ((slotHome === homeId && slotAway === awayId) ||
+               (slotHome === awayId && slotAway === homeId))) {
+              // Found the R32 config match. Find the corresponding bracket entry
+              matchedEntry = allEntries.find(e => e.id === cfg.id);
+              isReversed = slotHome === awayId;
+              break;
+            }
+          }
+        }
+
+        if (!matchedEntry) continue;
 
         // Classify status
         let status: 'upcoming' | 'live' | 'finished' = 'upcoming';
@@ -228,10 +279,10 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         const evtHomeScore = isLiveOrFinished ? (parseInt(evt.homeScore, 10) || 0) : null;
         const evtAwayScore = isLiveOrFinished ? (parseInt(evt.awayScore, 10) || 0) : null;
 
-        // Align scores to our bracket's home/away
+        // Align scores to our bracket's home/away order
         let homeScore = evtHomeScore;
         let awayScore = evtAwayScore;
-        if (homeId === match.awayTeam) {
+        if (isReversed) {
           const tmp = homeScore;
           homeScore = awayScore;
           awayScore = tmp;
@@ -242,7 +293,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           ? Math.floor(evt.clock / 60)
           : undefined;
 
-        newInfo[match.id] = {
+        newInfo[matchedEntry.id] = {
           status,
           homeScore,
           awayScore,
@@ -251,12 +302,12 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         };
 
         if (status === 'live' && minute != null) {
-          newKnockoutLive[match.id] = minute;
+          newKnockoutLive[matchedEntry.id] = minute;
         }
 
         // Collect finished results for bracket auto-resolution
         if (status === 'finished' && homeScore !== null && awayScore !== null) {
-          finishedKO.push({ id: match.id, home: homeScore, away: awayScore });
+          finishedKO.push({ id: matchedEntry.id, home: homeScore, away: awayScore });
         }
       }
 
@@ -282,7 +333,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         // Bypass server cache with _refresh parameter
         const url = `/api/live-scores?XTransformPort=3000&_refresh=${Date.now()}`;
         const res = await fetch(url);
-        if (!res.ok) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.scores) {
           get().bulkUpdateFromESPN(data.scores);
@@ -292,7 +343,9 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         }
         get().setLastPollTime(new Date().toISOString());
       } catch { /* silently fail */ }
-      set({ isRefreshing: false });
+      finally {
+        set({ isRefreshing: false });
+      }
     },
   };
 });

@@ -6,6 +6,13 @@ import { getSlotLabel } from '@/lib/bracketResolver';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
 
+/** Format '2026-06-28' → '28/06' */
+function formatBracketDate(isoDate: string): string {
+  const parts = isoDate.split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+  return isoDate.slice(5); // fallback MM-DD
+}
+
 const ROUND_LABELS: Record<string, string> = {
   r32: '32-avos de Final',
   r16: 'Oitavas de Final',
@@ -140,7 +147,7 @@ function BracketMatchCard({
       </div>
       {!compact && (
         <div className="text-[9px] text-muted-foreground mt-1 truncate">
-          {match.venue} · {match.date.slice(5)}
+          {match.venue} · {formatBracketDate(match.date)}
         </div>
       )}
     </div>
@@ -210,7 +217,7 @@ function MobileMatchRow({
           {hasScore ? (
             <span className="text-sm font-bold">{match.homeScore} × {match.awayScore}</span>
           ) : (
-            <span className="text-xs text-muted-foreground">{match.date.slice(5)}</span>
+            <span className="text-xs text-muted-foreground">{formatBracketDate(match.date)}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 min-w-0 justify-end">
