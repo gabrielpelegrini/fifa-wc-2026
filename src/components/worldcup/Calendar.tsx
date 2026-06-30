@@ -97,11 +97,13 @@ export default function Calendar() {
         : ['STATUS_IN_PROGRESS','STATUS_HALFTIME','STATUS_1ST_PERIOD','STATUS_2ND_PERIOD','STATUS_EXTRA_TIME','STATUS_PENALTY_SHOOTOUT'].includes(evt.statusName)
           ? 'live' as const : 'upcoming' as const;
       const hasScore = status !== 'upcoming';
+      // Fallback: if ESPN has no time, use '12:00' so the match still appears in calendar
+      const evtTime = evt.time || '12:00';
       list.push({
         id: `espn-ko-${evt.homeAbbr}-${evt.awayAbbr}`,
         homeTeam: homeId ?? null, awayTeam: awayId ?? null,
         homeLabel: evt.homeName, awayLabel: evt.awayName,
-        date: evt.date || '', time: evt.time || '',
+        date: evt.date || '', time: evtTime,
         venue: evt.venue || '', city: evt.city || '', country: '',
         group: '', round: 4,
         homeScore: hasScore ? (parseInt(evt.homeScore, 10) || 0) : null,
@@ -119,8 +121,10 @@ export default function Calendar() {
   const matchLocalDates = useMemo(() => {
     const map = new Map<string, string>(); // matchId → localDate
     for (const m of allMatches) {
-      if (!m.date || !m.time) continue;
-      map.set(m.id, getLocalDate(m.date, m.time, timezone));
+      if (!m.date) continue;
+      // Use time if available, fallback to '12:00' for date-only matches
+      const time = m.time || '12:00';
+      map.set(m.id, getLocalDate(m.date, time, timezone));
     }
     return map;
   }, [allMatches, timezone]);

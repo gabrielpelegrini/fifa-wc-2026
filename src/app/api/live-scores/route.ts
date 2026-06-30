@@ -60,15 +60,27 @@ interface RawKnockoutEvent {
 // For manual refresh, the _refresh param is kept but now just bypasses any CDN.
 
 // ── Group stage date range ─────────────────────────────────────────────
-// Full list for reference — we only fetch a subset to stay within timeout
+// Full list of ALL group stage dates (June 11–28, 2026)
+// NOTE: Group J Matchday 3 is on June 28 — MUST be included!
 const ALL_GROUP_DATES = [
   '20260611', '20260612', '20260613', '20260614', '20260615',
   '20260616', '20260617', '20260618', '20260619', '20260620',
   '20260621', '20260622', '20260623', '20260624', '20260625',
-  '20260626', '20260627',
+  '20260626', '20260627', '20260628',
 ];
 
-/** Build a smart date list: all group dates + dynamic knockout window */
+// ── Knockout stage date range ───────────────────────────────────────────
+// Full knockout stage: June 28 – July 19, 2026 (R32 through Final)
+const KNOCKOUT_DATES = [
+  '20260628', '20260629', '20260630',
+  '20260701', '20260702', '20260703', '20260704',
+  '20260705', '20260706', '20260707',
+  '20260709', '20260710', '20260711', '20260712',
+  '20260714', '20260715',
+  '20260718', '20260719',
+];
+
+/** Build a smart date list: all group dates + all knockout dates + dynamic window */
 function buildFetchDates(): string[] {
   const dates = new Set<string>();
   const nowUtc = new Date();
@@ -78,7 +90,13 @@ function buildFetchDates(): string[] {
     dates.add(gd);
   }
 
-  // Dynamic window: -2 to +10 days (covers full knockout stage)
+  // Always include ALL knockout stage dates (for bracket live scores)
+  for (const kd of KNOCKOUT_DATES) {
+    dates.add(kd);
+  }
+
+  // Dynamic window: -2 to +10 days (catches recently-added/rescheduled matches near today)
+  // Note: all group + knockout dates are already explicitly included above
   for (let offset = -2; offset <= 10; offset++) {
     const d = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + offset));
     dates.add(d.toISOString().slice(0, 10).replace(/-/g, ''));

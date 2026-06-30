@@ -198,8 +198,11 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     },
 
     updateKnockoutLive: (events) => {
-      const { bracket, allStandings } = get();
-      if (!bracket || events.length === 0) return;
+      const { allStandings, knockoutResults, thirdPlaceRanking } = get();
+      if (events.length === 0) return;
+
+      // Re-compute bracket to ensure latest team assignments (including 3rd place pools)
+      const freshBracket = resolveBracket(allStandings, thirdPlaceRanking, knockoutResults);
 
       // Build a function to resolve a slot to teamId using current standings
       const slotToTeam = (slot: string): string | null => {
@@ -226,12 +229,12 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       };
 
       const allEntries: BracketEntry[] = [];
-      for (const m of bracket.r32) allEntries.push(m);
-      for (const m of bracket.r16) allEntries.push(m);
-      for (const m of bracket.qf) allEntries.push(m);
-      for (const m of bracket.sf) allEntries.push(m);
-      allEntries.push(bracket.thirdPlace);
-      allEntries.push(bracket.final);
+      for (const m of freshBracket.r32) allEntries.push(m);
+      for (const m of freshBracket.r16) allEntries.push(m);
+      for (const m of freshBracket.qf) allEntries.push(m);
+      for (const m of freshBracket.sf) allEntries.push(m);
+      allEntries.push(freshBracket.thirdPlace);
+      allEntries.push(freshBracket.final);
 
       const newInfo: Record<string, KnockoutLiveEntry> = {};
       const newKnockoutLive: Record<string, number> = {};
@@ -341,6 +344,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         knockoutLiveInfo: newInfo,
         liveMatches: { ...get().liveMatches, ...newKnockoutLive },
         rawKnockoutEvents: events, // Store raw ESPN data for LiveTab fallback display
+        bracket: freshBracket, // Use the fresh bracket we computed above
       };
 
       // Auto-update knockout bracket with finished results so winners advance
