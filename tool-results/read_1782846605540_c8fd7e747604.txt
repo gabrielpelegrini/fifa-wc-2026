@@ -1,0 +1,647 @@
+     1→# FIFA WC 2026 — Worklog de Melhorias (Top 10 Críticos)
+     2→
+     3→> Baseado no Tech Council Report (6 agentes especialistas)
+     4→> Score médio geral: 5.7/10 → Meta: 8.0/10
+     5→
+     6→---
+     7→
+     8→## Task ID: 0
+     9→**Agent**: Main Orchestrator
+    10→**Task**: Criar worklog e planejar top 10 melhorias críticas
+    11→
+    12→**Work Log:**
+    13→- Exploração completa do codebase (76 arquivos .ts/.tsx)
+    14→- Leitura de todos os arquivos-chave: worldcup.ts, worldCupStore.ts, useLiveScores.ts, live-scores/route.ts, LiveTab.tsx, KnockoutBracket.tsx, bracketResolver.ts
+    15→- Identificação precisa de todos os bugs e suas localizações
+    16→- Criação deste worklog com 10 tarefas priorizadas
+    17→
+    18→**Status**: CONCLUÍDO
+    19→
+    20→---
+    21→
+    22→## Task ID: 1 (CRÍTICO — Impacto: pode fixar 500 no deploy)
+    23→**Agent**: Main
+    24→**Task**: Remover XTransformPort=3000 das URLs de fetch
+    25→**Arquivos modificados**:
+    26→- `src/hooks/useLiveScores.ts:51` — `/api/live-scores?XTransformPort=3000` → `/api/live-scores`
+    27→- `src/store/worldCupStore.ts:334` — `/api/live-scores?XTransformPort=3000&_refresh=...` → `/api/live-scores?_refresh=...`
+    28→**Status**: ✅ CONCLUÍDO
+    29→
+    30→---
+    31→
+    32→## Task ID: 2 (CRÍTICO — Impacto: reduziu de ~600+ para 376 pacotes)
+    33→**Agent**: Main
+    34→**Task**: Remover z-ai-web-dev-sdk + 35+ deps não usadas
+    35→**Arquivo modificado**: `package.json`
+    36→**Deps removidas** (pacotes nunca importados em src/):
+    37→- `z-ai-web-dev-sdk` (binário CLI, principal suspeito do 500)
+    38→- `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`
+    39→- `@hookform/resolvers`, `react-hook-form`
+    40→- `@mdxeditor/editor`
+    41→- `@reactuses/core`
+    42→- `@tanstack/react-query`, `@tanstack/react-table`
+    43→- `cmdk`, `embla-carousel-react`, `input-otp`
+    44→- `next-auth`, `next-intl`
+    45→- `react-day-picker`, `react-markdown`, `react-resizable-panels`
+    46→- `react-syntax-highlighter`, `recharts`, `sonner`, `uuid`, `vaul`
+    47→- `framer-motion`, `date-fns`
+    48→- `@radix-ui/react-slot`, `@radix-ui/react-tabs` (não usados diretamente)
+    49→- 15+ Radix UI components (só toast era usado pelo app)
+    50→**Arquivos deletados**: 42 shadcn/ui wrapper files não usados (mantidos: toast.tsx, toaster.tsx, skeleton.tsx)
+    51→**Deps finais (14 runtime)**: @radix-ui/react-toast, class-variance-authority, clsx, lucide-react, next, next-themes, react, react-dom, tailwind-merge, tailwindcss-animate, zod, zustand + 9 devDeps
+    52→**Resultado**: 600+ → 376 pacotes (redução ~40%)
+    53→**Status**: ✅ CONCLUÍDO
+    54→
+    55→---
+    56→
+    57→## Task ID: 3 (CRÍTICO — Impacto: remove conflito de rota)
+    58→**Agent**: Main
+    59→**Task**: Deletar src/app/api/route.ts
+    60→**Arquivo deletado**: `src/app/api/route.ts` (stub "Hello, world!" que podia conflitar)
+    61→**Status**: ✅ CONCLUÍDO
+    62→
+    63→---
+    64→
+    65→## Task ID: 4 (CRÍTICO — Impacto: corrige dados do calendário)
+    66→**Agent**: Main
+    67→**Task**: Corrigir Group C: MD3 (BRA vs HAI 20/06) antes do MD2 (MAR vs HAI 24/06)
+    68→**Arquivo modificado**: `src/data/worldcup.ts`
+    69→**Mudanças**:
+    70→- `G_C2_2` (MAR vs HAI): 2026-06-24 → 2026-06-20 (agora dentro do MD2 correto)
+    71→- `G_C3_1` (BRA vs HAI): 2026-06-20 → 2026-06-25 (agora no MD3 correto)
+    72→- Sequência agora: MD1 (13-14/06) → MD2 (19-20/06) → MD3 (24-25/06) ✓
+    73→**Status**: ✅ CONCLUÍDO
+    74→
+    75→---
+    76→
+    77→## Task ID: 5 (ALTO — Impacto: bug de dados silencioso)
+    78→**Agent**: Main
+    79→**Task**: Corrigir STATUS_POSTPONED → upcoming (não finished)
+    80→**Arquivos modificados**:
+    81→- `src/app/api/live-scores/route.ts:97` — `STATUS_FULL_TIME || STATUS_POSTPONED` → `STATUS_FULL_TIME` apenas
+    82→- `src/store/worldCupStore.ts:268` — mesmo fix
+    83→**Resultado**: Jogos adiados agora ficam como 'upcoming' (sem placar 0x0 falso)
+    84→**Status**: ✅ CONCLUÍDO
+    85→
+    86→---
+    87→
+    88→## Task ID: 6 (ALTO — Impacto: elimina flicker)
+    89→**Agent**: Main
+    90→**Task**: Merge double set() em updateKnockoutLive num único set() atômico
+    91→**Arquivo modificado**: `src/store/worldCupStore.ts:314-330`
+    92→**Mudança**: Dois `set()` separados → um único `set()` com `Object.assign()` condicional
+    93→**Resultado**: Não há mais estado intermediário entre atualização de live info e recálculo do bracket
+    94→**Status**: ✅ CONCLUÍDO
+    95→
+    96→---
+    97→
+    98→## Task ID: 7 (ALTO — Impacto: preserva knockout live durante poll de grupos)
+    99→**Agent**: Main
+   100→**Task**: Corrigir bulkUpdateFromESPN preservando liveMatches de knockout
+   101→**Arquivo modificado**: `src/store/worldCupStore.ts:178`
+   102→**Mudança**: `const newLiveMatches: Record<string, number> = {}` → `{ ...get().liveMatches }` (spread antes de overlay)
+   103→**Resultado**: Quando a resposta ESPN só tem jogos de grupos, os liveMatches de knockout existentes são mantidos
+   104→**Status**: ✅ CONCLUÍDO
+   105→
+   106→---
+   107→
+   108→## Task ID: 8 (MÉDIO — Impacto: identidade visual)
+   109→**Agent**: Main
+   110→**Task**: Adicionar identidade visual FIFA WC 2026 (paleta de cores com marca)
+   111→**Arquivos modificados**:
+   112→- `src/app/globals.css` — Nova paleta completa:
+   113→  - `--fifa-green`: verde campo (oklch 0.55 0.15 155)
+   114→  - `--fifa-gold`: dourado troféu (oklch 0.78 0.14 85)
+   115→  - `--fifa-blue`: azul corporativo (oklch 0.40 0.12 250)
+   116→  - Light/dark mode com identidade FIFA
+   117→  - Animações: `score-pulse`, `live-glow`
+   118→- `src/components/worldcup/Navigation.tsx`:
+   119→  - Header com gradiente verde→fundo
+   120→  - Logo "WC" em quadrado verde
+   121→  - "FIFA 2026" em dourado
+   122→  - Tab ativa em verde FIFA
+   123→  - Botões com hover verde/dourado
+   124→  - Live indicator com glow
+   125→- `src/components/worldcup/KnockoutBracket.tsx`:
+   126→  - Round labels em verde FIFA
+   127→  - Match cards com borda verde quando tem resultado
+   128→  - Mobile list headers com bg-fifa-green/10
+   129→- `src/app/page.tsx`: Footer com identidade FIFA
+   130→**Status**: ✅ CONCLUÍDO
+   131→
+   132→---
+   133→
+   134→## Task ID: 9 (MÉDIO — Impacto: percepção de qualidade)
+   135→**Agent**: Main
+   136→**Task**: Adicionar loading skeletons + animação de mudança de placar
+   137→**Arquivos modificados/criados**:
+   138→- `src/components/ui/skeleton.tsx` (mantido da limpeza)
+   139→- `src/components/worldcup/LiveTab.tsx`:
+   140→  - Skeleton loading state (1.5s) com 4 cards placeholder
+   141→  - `AnimatedScore` component: detecta mudança de placar e aplica `score-pulse`
+   142→  - Live match cards com `live-glow` (box-shadow pulsante)
+   143→  - Upcoming cards com hover border-fifa-green/30
+   144→  - Botão "Atualizar" com hover verde FIFA
+   145→  - "Modo Rápido" com cor dourado quando ativo
+   146→  - Empty state melhorado com ícone ⚽ maior
+   147→**Status**: ✅ CONCLUÍDO
+   148→
+   149→---
+   150→
+   151→## Task ID: 10 (MÉDIO — Impacto: engajamento)
+   152→**Agent**: Main
+   153→**Task**: Adicionar artilharia + favoritar time + compartilhar resultado
+   154→**Arquivo criado**: `src/components/worldcup/Engagement.tsx`
+   155→**Componentes**:
+   156→- `useFavorites()`: Hook para favoritar times (localStorage persistente)
+   157→- `useShareResult()`: Hook para compartilhar (Web Share API → WhatsApp fallback)
+   158→- `FavoritesPanel`: Painel "Meus Times" com estrelas douradas
+   159→- `TopScorersPanel`: Tabela de artilharia com ranking (dados mock, preparado para ESPN)
+   160→- `ShareButton`: Botão reutilizável de compartilhar
+   161→
+   162→**Arquivos modificados**:
+   163→- `src/components/worldcup/GroupTables.tsx`:
+   164→  - Integra FavoritesPanel + TopScorersPanel no topo
+   165→  - Estrela de favorito em cada linha da tabela de grupos
+   166→  - Linha de time favoritado com bg-fifa-gold/5
+   167→  - Indicadores de classificação em verde/dourado FIFA
+   168→  - Ranking de 3° lugares com identidade FIFA
+   169→- `src/components/worldcup/LiveTab.tsx`:
+   170→  - Botão "Compartilhar" na seção de Resultados Recentes
+   171→  - Gera texto com os 4 resultados mais recentes para WhatsApp
+   172→**Status**: ✅ CONCLUÍDO
+   173→
+   174→---
+   175→
+   176→## Task ID: 11 (VALIDAÇÃO)
+   177→**Agent**: Main
+   178→**Task**: Rodar build e testes
+   179→**Resultados**:
+   180→- `npm run build`: ✅ Compiled successfully (2.8s)
+   181→- `npx tsc --noEmit`: ✅ Zero erros TypeScript
+   182→- Rotas: `○ /` (static), `ƒ /api/live-scores` (dynamic)
+   183→- Pacotes: 376 (antes ~600+)
+   184→**Status**: ✅ CONCLUÍDO
+   185→
+   186→---
+   187→
+   188→## Resumo Final
+   189→| # | Tarefa | Severidade | Status |
+   190→|---|--------|-----------|--------|
+   191→| 1 | XTransformPort=3000 | CRÍTICO | ✅ |
+   192→| 2 | Limpar deps (600→376) | CRÍTICO | ✅ |
+   193→| 3 | Deletar api/route.ts | CRÍTICO | ✅ |
+   194→| 4 | Group C datas | CRÍTICO | ✅ |
+   195→| 5 | POSTPONED bug | ALTO | ✅ |
+   196→| 6 | Double set() merge | ALTO | ✅ |
+   197→| 7 | Preservar knockout live | ALTO | ✅ |
+   198→| 8 | Identidade visual FIFA | MÉDIO | ✅ |
+   199→| 9 | Skeletons + animação | MÉDIO | ✅ |
+   200→| 10 | Artilharia + favoritos + share | MÉDIO | ✅ |
+   201→| 11 | Build + TypeScript check | VALIDAÇÃO | ✅ |
+   202→
+   203→**Antes**: Score médio 5.7/10, 15 bugs, 500 no deploy, sem identidade visual
+   204→**Depois (Fase 1)**: Build limpo, 0 erros TS, paleta FIFA, skeletons, artilharia, favoritos, compartilhar, 40% menos deps
+   205→
+   206→---
+   207→
+   208→# FASE 2: Recomendacoes Restantes do Tech Council
+   209→
+   210→> Itens #12-#20: bugs medio/baixo, performance, acessibilidade, UX, visual
+   211→
+   212→---
+   213→
+   214→## Task ID: 12 (JA CONCLUIDO — Verificacao)
+   215→**Agent**: Main
+   216→**Task**: #11 Remover cache in-memory + limitar fetches paralelos
+   217→**Verificacao**: Ja implementado na Fase 1:
+   218→- `route.ts:50-53`: Comentario "NO in-memory cache" presente
+   219→- `route.ts:93-109`: `fetchAllDatesBatched()` com BATCH_SIZE=5
+   220→**Status**: ✅ JA ESTAVA FEITO
+   221→
+   222→---
+   223→
+   224→## Task ID: 13 (JA CONCLUIDO — Verificacao)
+   225→**Agent**: Main
+   226→**Task**: #12 Adicionar lock de polling (mutex)
+   227→**Verificacao**: Ja implementado na Fase 1:
+   228→- `useLiveScores.ts:40`: `pollingLock = useRef(false)`
+   229→- `useLiveScores.ts:51`: `if (pollingLock.current) return;`
+   230→- `useLiveScores.ts:75`: `finally { pollingLock.current = false; }`
+   231→**Status**: ✅ JA ESTAVA FEITO
+   232→
+   233→---
+   234→
+   235→## Task ID: 14 (ALTO — Bracket nao mostra scores ao vivo de mata-mata)
+   236→**Agent**: Main
+   237→**Task**: Mostrar scores ao vivo do knockout no componente KnockoutBracket
+   238→**Arquivos modificados**:
+   239→- `src/components/worldcup/KnockoutBracket.tsx`:
+   240→  - Nova funcao `enrichBracket()` que mescla `knockoutLiveInfo` + `liveMatches` nos matches do bracket
+   241→  - `BracketMatchCard` agora mostra: indicador "AO VIVO" com Radio icon + minuto
+   242→  - Match card ao vivo recebe `bg-red-950/20 border-red-500/40 live-glow`
+   243→  - MobileMatchRow tambem exibe live indicator com icon
+   244→**Status**: ✅ CONCLUÍDO
+   245→
+   246→---
+   247→
+   248→## Task ID: 15 (ALTO — Penaltis congelam bracket)
+   249→**Agent**: Main
+   250→**Task**: Tratar empate/penaltis no bracket (parse ESPN + visual + resolver)
+   251→**Arquivos modificados**:
+   252→- `src/app/api/live-scores/route.ts`:
+   253→  - `RawKnockoutEvent` ganhou campo `shortDetail?: string`
+   254→  - Push de `shortDetail` (comp.status.type.shortDetail) no rawKnockout
+   255→- `src/store/worldCupStore.ts`:
+   256→  - `RawKnockoutEvent` ganhou `shortDetail?: string`
+   257→  - `finishedKO` array agora tipa com `penaltyHome?/penaltyAway?`
+   258→  - Parse de "PK 4-2" do shortDetail via regex `/PK\s+(\d+)\s*[-–]\s*(\d+)/i`
+   259→  - Penalidades alinhadas ao home/away do nosso bracket (isReversed check)
+   260→  - `knockoutResults.set()` agora inclui penaltyHome/penaltyAway
+   261→- `src/lib/bracketResolver.ts`:
+   262→  - Tipo `resolveBracket` atualizado: `knockoutResults: Map<string, { home, away, penaltyHome?, penaltyAway? }>`
+   263→  - `resolveFeederRound` propaga penaltyHome/penaltyAway em todos os rounds
+   264→  - R32, 3rd place, final todos propaga penalty data
+   265→- `src/components/worldcup/KnockoutBracket.tsx`:
+   266→  - `isPenalty` detecta empate + penaltis disponiveis
+   267→  - Exibe "Penaltis: X x Y" em dourado (text-fifa-gold)
+   268→  - Vencedor nos penaltis recebe asterisco dourado (*) + texto verde bold
+   269→  - Mobile: score de penaltis exibido como (H-A) entre os placares
+   270→**Status**: ✅ CONCLUÍDO
+   271→
+   272→---
+   273→
+   274→## Task ID: 16 (MEDIO — sf[0]/sf[1] hardcoded)
+   275→**Agent**: Main
+   276→**Task**: Eliminar sf[0]/sf[1] array indexing em bracketResolver.ts
+   277→**Arquivos modificados**:
+   278→- `src/lib/bracketResolver.ts`:
+   279→  - Nova funcao generica `resolveFeederRound<T>()` que resolve qualquer rodada a partir de feeder
+   280→  - Eliminou triplo copy-paste de R16/QF/SF (100+ linhas → 30 linhas)
+   281→  - 3rd place + Final agora usam `getTeamFromMatch(matchId, side, round)` com lookup por ID (`'SF-01'`, `'SF-02'`) em vez de `sf[0]`, `sf[1]`
+   282→  - Comentario "FIX: use BRACKET_CONFIG IDs instead of sf[0]/sf[1] array indexing"
+   283→**Status**: ✅ CONCLUÍDO
+   284→
+   285→---
+   286→
+   287→## Task ID: 17 (MEDIO — Expandir fallback knockout alem do R32)
+   288→**Agent**: Main
+   289→**Task**: O updateKnockoutLive ja funciona para todas as rodadas
+   290→**Verificacao**: O Method 1 (match by resolved team names) no `updateKnockoutLive` ja varre `allEntries` que contem R32+R16+QF+SF+3RD+FINAL. Comentario adicionado: "Works for ALL rounds (R32, R16, QF, SF, 3RD, FINAL)". O Method 2 (slot-based fallback) so fazia sentido para R32. Nao expandido pois seria incorreto — R16+ usam V(feederId) como slot, nao slots de grupo.
+   291→**Status**: ✅ CONCLUÍDO (verificado — ja funcionava)
+   292→
+   293→---
+   294→
+   295→## Task ID: 18 (MEDIO — fairPlay sempre 0 + subset tiebreaker)
+   296→**Agent**: Main
+   297→**Task**: Implementar subset tiebreaker FIFA + preparar fairPlay
+   298→**Arquivos modificados**:
+   299→- `src/lib/standings.ts`:
+   300→  - Primary sort agora inclui fairPlay como 4o criterio (via cast seguro `as unknown as Record<string, unknown>`)
+   301→  - H2H: agora filtra `matches` apenas onde AMBOS os times sao do grupo empatado (subset rule FIFA)
+   302→  - Apos H2H completo, fallback para overall goalDiff → goalsFor (FIFA rules para empates circulares)
+   303→  - Comentarios FIFA inline: regras 1-7 documentadas
+   304→- `src/data/types.ts`: `TeamStanding` ja tem campo implicito para fairPlay
+   305→- Nota: fairPlay fica 0 pois ESPN nao fornece dados de cartoes. A infraestrutura esta pronta para quando a fonte de dados tiver cartoes.
+   306→**Status**: ✅ CONCLUÍDO
+   307→
+   308→---
+   309→
+   310→## Task ID: 19 (MEDIO — Acessibilidade)
+   311→**Agent**: Main
+   312→**Task**: Adicionar aria-labels e icones para indicadores color-only
+   313→**Arquivos modificados**:
+   314→- `src/components/worldcup/GroupTables.tsx`:
+   315→  - Posicoes de classificacao: `role="status"` + `aria-label` descritivo (ex: "1o lugar, classificado para mata-mata", "3o lugar, possivel classificacao como terceiro", "4o lugar, eliminado")
+   316→- `src/components/worldcup/KnockoutBracket.tsx`:
+   317→  - Match cards: `role="group"` + `aria-label` com nomes dos times + status (Ao vivo/Encerrado)
+   318→  - Sub-tabs: `role="tablist"` + `role="tab"` + `aria-selected`
+   319→  - Regions: `role="region"` + `aria-label` para "Chaveamento lista" e "Chaveamento visual"
+   320→  - Live indicator: `role="status"` + `aria-label` com minuto
+   321→  - Penaltis: `aria-label` descritivo
+   322→  - Icones decorativos: `aria-hidden="true"` em todas as FlagIcon
+   323→  - Info banner: `role="note"`
+   324→- `src/components/worldcup/Navigation.tsx`: Ja tinha `role="tablist"`, `role="tab"`, `aria-selected`, `aria-label` no dark mode
+   325→**Status**: ✅ CONCLUÍDO
+   326→
+   327→---
+   328→
+   329→## Task ID: 20 (BAIXO — text-[9px] abaixo do legivel)
+   330→**Agent**: Main
+   331→**Task**: Elevar texto abaixo de 10px para minimo text-[10px]
+   332→**Arquivos modificados**:
+   333→- `src/components/worldcup/Calendar.tsx:156` — `text-[9px]` → `text-[10px]` (numero do dia no mini-calendario)
+   334→- `src/components/worldcup/GroupTables.tsx:89` — `text-[9px]` → `text-[10px]` (badge "R32")
+   335→- Verificacao: `grep text-\\[9px\\]` retorna 0 resultados
+   336→**Status**: ✅ CONCLUÍDO
+   337→
+   338→---
+   339→
+   340→## Task ID: 21 (MEDIO — Bracket connector lines desktop)
+   341→**Agent**: Main
+   342→**Task**: Adicionar linhas conectoras SVG entre rodadas no bracket desktop
+   343→**Arquivos modificados**:
+   344→- `src/components/worldcup/KnockoutBracket.tsx`:
+   345→  - Nova funcao `connectorSvg()` que retorna SVG inline com seta tracejada (strokeDasharray="4 2")
+   346→  - Conectores posicionados entre cada rodada (R32→R16, R16→QF, QF→SF) como divs de 24px
+   347→  - `aria-hidden="true"` nos conectores (decorativos)
+   348→  - Layout ajustado: `gap-0` entre colunas para conectar visualmente
+   349→  - Min-width aumentado de 1200px para 1280px
+   350→**Status**: ✅ CONCLUÍDO
+   351→
+   352→---
+   353→
+   354→## Task ID: 22 (MEDIO — Cruzamentos como sub-tab do bracket)
+   355→**Agent**: Main
+   356→**Task**: Mover "Cruzamentos" de tab principal para sub-tab dentro de "Mata-mata"
+   357→**Arquivos modificados**:
+   358→- `src/components/worldcup/Navigation.tsx`:
+   359→  - Removido tab "Cruzamentos" do array TABS (5→4 tabs)
+   360→  - Removido import de `ArrowLeftRight`
+   361→- `src/app/page.tsx`:
+   362→  - Removido import de `CrossoverPredictor`
+   363→  - Removida linha `{activeTab === 'crossover' && <CrossoverPredictor />}`
+   364→- `src/components/worldcup/KnockoutBracket.tsx`:
+   365→  - Novo estado `subTab` com opcoes "bracket" e "crossover"
+   366→  - Sub-tab bar com `role="tablist"` estilizada igual ao header
+   367→  - Tab "Chaveamento" mostra o bracket visual/lista
+   368→  - Tab "Cruzamentos" renderiza `<CrossoverPredictor />` inline
+   369→**Status**: ✅ CONCLUÍDO
+   370→
+   371→---
+   372→
+   373→## Task ID: 23 (VALIDAÇÃO FINAL)
+   374→**Agent**: Main
+   375→**Task**: Build final + TypeScript check
+   376→**Resultados**:
+   377→- `npx tsc --noEmit`: ✅ Zero erros TypeScript
+   378→- `npm run build`: ✅ Compiled successfully (2.6s)
+   379→- Rotas: `○ /` (static), `ƒ /api/live-scores` (dynamic)
+   380→**Status**: ✅ CONCLUÍDO
+   381→
+   382→---
+   383→
+   384→## Resumo Fase 2
+   385→| # | Tarefa | Severidade | Status |
+   386→|---|--------|-----------|--------|
+   387→| 12 | Cache in-memory + fetches batched (verificado) | MEDIO | ✅ Ja feito |
+   388→| 13 | Polling mutex (verificado) | MEDIO | ✅ Ja feito |
+   389→| 14 | Bracket mostra scores ao vivo | ALTO | ✅ |
+   390→| 15 | Penaltis no bracket (parse+visual+resolver) | ALTO | ✅ |
+   391→| 16 | sf[0]/sf[1] hardcode → lookup por ID | MEDIO | ✅ |
+   392→| 17 | Fallback knockout alem R32 (verificado) | MEDIO | ✅ Ja funcionava |
+   393→| 18 | Subset tiebreaker + fairPlay | MEDIO | ✅ |
+   394→| 19 | Acessibilidade (aria-labels + icones) | MEDIO | ✅ |
+   395→| 20 | Font-size minimo 10px | BAIXO | ✅ |
+   396→| 21 | Connector lines desktop | MEDIO | ✅ |
+   397→| 22 | Cruzamentos como sub-tab | MEDIO | ✅ |
+   398→| 23 | Build + TypeScript final | VALIDACAO | ✅ |
+   399→
+   400→**Total Geral**: 23 tarefas concluidas (11 Fase 1 + 12 Fase 2)
+   401→**Score estimado**: 5.7/10 → ~8.5/10
+   402→
+   403→---
+   404→
+   405→# FASE 3: Bugs Criticos Reportados pelo Usuario (pos-deploy)
+   406→
+   407→> Usuario testou o deploy e reportou 5 bugs criticos apos jogar ao vivo.
+   408→> Data: 01/07/2026
+   409→
+   410→---
+   411→
+   412→## Task ID: 24 (CRITICO — Group J nunca completava)
+   413→**Agent**: Main
+   414→**Task**: Adicionar 28/06 ao ALL_GROUP_DATES e todas as datas do mata-mata
+   415→**Arquivo modificado**: `src/app/api/live-scores/route.ts`
+   416→**Mudancas**:
+   417→- `ALL_GROUP_DATES`: adicionado `20260628` (Grupo J rodada 3: ARG vs JOR, ALG vs AUT)
+   418→- Novo array `KNOCKOUT_DATES`: 18 datas (20260628-20260719) cobrindo R32 ate Final
+   419→- `buildFetchDates()`: agora inclui group + knockout + dynamic window = 36 datas unicas (4 batches)
+   420→- Comentario: "NOTE: Group J Matchday 3 is on June 28 — MUST be included!"
+   421→**Resultado**: Todas as 72 group scores + 32 knockout events agora buscados corretamente
+   422→**Status**: ✅ CONCLUIDO
+   423→
+   424→---
+   425→
+   426→## Task ID: 25 (ALTO — Calendar nao mostrava mata-mata)
+   427→**Agent**: Main
+   428→**Task**: Corrigir Calendar para exibir knockout matches mesmo sem time
+   429→**Arquivo modificado**: `src/components/worldcup/Calendar.tsx`
+   430→**Mudancas**:
+   431→- `matchLocalDates`: removido `!m.time` check, agora so verifica `!m.date`
+   432→- Para matches sem time, usa fallback `'12:00'` para calcular data local
+   433→- Raw ESPN events: `evt.time || '12:00'` garante que matches com data mas sem hora aparecem
+   434→**Status**: ✅ CONCLUIDO
+   435→
+   436→---
+   437→
+   438→## Task ID: 26 (MEDIO — Bracket matching falhava para 3rd place pools)
+   439→**Agent**: Main
+   440→**Task**: Re-computar bracket no updateKnockoutLive antes do matching
+   441→**Arquivo modificado**: `src/store/worldCupStore.ts`
+   442→**Mudancas**:
+   443→- `updateKnockoutLive`: agora chama `resolveBracket()` internamente para obter `freshBracket`
+   444→- Matching usa `freshBracket` (com 3rd place pools resolvidos) em vez do bracket do store
+   445→- Remove dependencia de `bracket` e `matches` do destructuring
+   446→- `set()` atomico agora inclui `bracket: freshBracket`
+   447→**Status**: ✅ CONCLUIDO
+   448→
+   449→---
+   450→
+   451→## Task ID: 27 (VALIDACAO)
+   452→**Agent**: Main
+   453→**Task**: Build + TypeScript + API test
+   454→**Resultados**:
+   455→- `npx tsc --noEmit`: ✅ Zero erros TypeScript
+   456→- `npm run build`: ✅ Compiled successfully (2.6s)
+   457→- API test: 72/72 group scores, 32 KO events, Group J completo, June 28 OK
+   458→- Knockout verify: Germany vs Paraguay (penaltis) detectado corretamente
+   459→**Status**: ✅ CONCLUIDO
+   460→
+   461→---
+   462→
+   463→## Resumo Fase 3
+   464→| # | Tarefa | Severidade | Status |
+   465→|---|--------|-----------|--------|
+   466→| 24 | ALL_GROUP_DATES + KNOCKOUT_DATES | CRITICO | ✅ |
+   467→| 25 | Calendar knockout fallback | ALTO | ✅ |
+   468→| 26 | Bracket re-compute no matching | MEDIO | ✅ |
+   469→| 27 | Build + TypeScript + API test | VALIDACAO | ✅ |
+   470→
+   471→**Total Fase 3**: 27 tarefas
+   472→
+   473→---
+   474→
+   475→# FASE 4: Todos os Itens Pendentes do Relatorio QA + Visual + Tech Council
+   476→
+   477→> Todos os itens pendentes do relatorio consolidado foram implementados.
+   478→> Data: 01/07/2026
+   479→
+   480→---
+   481→
+   482→## Task ID: 28 (ALTO — updateKnockoutLive nao limpa dados antigos)
+   483→**Arquivo modificado**: `src/store/worldCupStore.ts`
+   484→**Mudanca**: Quando `events=[]`, agora faz `set({ knockoutLiveInfo: {}, rawKnockoutEvents: [] })` em vez de `return` silencioso
+   485→**Status**: ✅ CONCLUIDO
+   486→
+   487→---
+   488→
+   489→## Task ID: 29 (ALTO — refreshNow engole erros sem feedback)
+   490→**Arquivo modificado**: `src/store/worldCupStore.ts`, `src/components/worldcup/LiveTab.tsx`
+   491→**Mudancas**:
+   492→- Store: `refreshNow` agora captura erros e salva em `lastError: string | null`
+   493→- Store: Adicionado `setLastError` action ao estado
+   494→- LiveTab: Mostra banner de erro com `role="alert"` quando `lastError` existe
+   495→**Status**: ✅ CONCLUIDO
+   496→
+   497→---
+   498→
+   499→## Task ID: 30 (MEDIO — parseInt(|| 0) mascara score ausente)
+   500→**Arquivo modificado**: `src/components/worldcup/LiveTab.tsx`
+   501→**Mudanca**: Removido `|| 0` do `parseInt(evt.homeScore, 10) || 0` — agora retorna `null` quando score ausente, evitando "0x0" falso
+   502→**Status**: ✅ CONCLUIDO
+   503→
+   504→---
+   505→
+   506→## Task ID: 31 (MEDIO — JSON parse silenciado no fetch ESPN)
+   507→**Arquivo modificado**: `src/hooks/useLiveScores.ts`
+   508→**Mudanca**: `res.json()` agora dentro de try/catch, retorna silenciosamente em caso de JSON invalido (nao crasha o polling)
+   509→**Status**: ✅ CONCLUIDO
+   510→
+   511→---
+   512→
+   513→## Task ID: 32 (MEDIO — fairPlay nunca inicializado)
+   514→**Arquivos modificados**: `src/data/types.ts`, `src/lib/standings.ts`
+   515→**Mudancas**:
+   516→- `TeamStanding`: campo `fairPlay: number` adicionado
+   517→- `standings.ts`: inicializado com `fairPlay: 0` no reset de cada time
+   518→- `standings.ts`: removido cast inseguro `(a as unknown as Record<string, unknown>).fairPlay` → `'fairPlay' in a ? a.fairPlay : 0`
+   519→- `types.ts`: removida interface `BracketMatch` (duplicata nao usada de `KnockoutMatch`)
+   520→**Status**: ✅ CONCLUIDO
+   521→
+   522→---
+   523→
+   524→## Task ID: 33 (ALTA — Security headers + rate limiting)
+   525→**Arquivo criado**: `src/middleware.ts`
+   526→**Mudancas**:
+   527→- Security headers: CSP, X-Frame-Options (DENY), X-Content-Type-Options, Referrer-Policy, X-XSS-Protection, Permissions-Policy
+   528→- Rate limiting: 30 req/min por IP para rotas /api/* com resposta 429 + Retry-After
+   529→- Limpeza automatica do mapa de IPs a cada 10 minutos
+   530→**Status**: ✅ CONCLUIDO
+   531→
+   532→---
+   533→
+   534→## Task ID: 34 (ALTA — revalidate ESPN cache)
+   535→**Arquivo modificado**: `src/app/api/live-scores/route.ts`
+   536→**Mudanca**: `revalidate: 0` → `revalidate: 60` (60s CDN cache, reduz carga no ESPN)
+   537→**Status**: ✅ CONCLUIDO
+   538→
+   539→---
+   540→
+   541→## Task ID: 35 (ALTA — _debug expoe estrategia + String(error) vaza stack)
+   542→**Arquivo modificado**: `src/app/api/live-scores/route.ts`
+   543→**Mudancas**:
+   544→- Removido `_debug` da resposta JSON (nao expoe contagem de datas, scores, etc.)
+   545→- `String(error)` → `'Internal server error'` (nao vaza stack traces)
+   546→**Status**: ✅ CONCLUIDO
+   547→
+   548→---
+   549→
+   550→## Task ID: 36 (ALTA — getMatchLookup O(n) por request)
+   551→**Arquivo modificado**: `src/app/api/live-scores/route.ts`
+   552→**Mudanca**: `getMatchLookup()` convertido para singleton lazy — constroi o Map uma unica vez por cold start
+   553→**Status**: ✅ CONCLUIDO
+   554→
+   555→---
+   556→
+   557→## Task ID: 37 (ALTO — text-[9px/10px] ilegivel WCAG)
+   558→**Arquivos modificados**: 12 componentes
+   559→- LiveTab, KnockoutBracket, VisualBracket, Calendar, GroupTables, Navigation, Engagement, CrossoverPredictor, FlagIcon
+   560→- Todos os `text-[10px]` e `text-[9px]` substituidos por `text-[11px]`
+   561→**Status**: ✅ CONCLUIDO (0 ocorrencias restantes em src/)
+   562→
+   563→---
+   564→
+   565→## Task ID: 38 (ALTO — Contraste insuficiente dark mode)
+   566→**Arquivo modificado**: `src/app/globals.css`
+   567→**Mudanca**: `--muted-foreground` no dark: `oklch(0.65 0.02 250)` → `oklch(0.72 0.015 250)` (melhora contraste ~2.5:1 → ~4:1)
+   568→**Status**: ✅ CONCLUIDO
+   569→
+   570→---
+   571→
+   572→## Task ID: 39 (ALTO — Sem prefers-reduced-motion)
+   573→**Arquivo modificado**: `src/app/globals.css`
+   574→**Mudanca**: Adicionado `@media (prefers-reduced-motion: reduce)` que desabilita `.score-update`, `.live-glow`, `.animate-pulse`, `.animate-spin`
+   575→**Status**: ✅ CONCLUIDO
+   576→
+   577→---
+   578→
+   579→## Task ID: 40 (ALTO — Sem skip-to-content)
+   580→**Arquivo modificado**: `src/app/page.tsx`
+   581→**Mudanca**: Adicionado `<a href="#main-content" className="sr-only focus:not-sr-only ...">` com `id="main-content"` no content principal (WCAG 2.4.1)
+   582→**Status**: ✅ CONCLUIDO
+   583→
+   584→---
+   585→
+   586→## Task ID: 41 (MEDIO — Inconsistencia fifa-gold vs yellow-500 vs amber)
+   587→**Arquivos modificados**: `src/components/worldcup/KnockoutBracket.tsx`, `src/components/worldcup/VisualBracket.tsx`
+   588→**Mudanca**: Todos os `yellow-500/*`, `yellow-600`, `dark:text-yellow-400` substituidos por equivalentes `fifa-gold/*` e `fifa-gold-dark`
+   589→**Status**: ✅ CONCLUIDO
+   590→
+   591→---
+   592→
+   593→## Task ID: 42 (BAIXA — Decisoes ortografico)
+   594→**Arquivo modificado**: `src/components/worldcup/KnockoutBracket.tsx`
+   595→**Mudanca**: `Decisoes` → `Decisoes` (acentuacao correta)
+   596→**Status**: ✅ CONCLUIDO
+   597→
+   598→---
+   599→
+   600→## Task ID: 43 (MEDIO — Page Visibility API para pausar polling)
+   601→**Arquivo modificado**: `src/hooks/useLiveScores.ts`
+   602→**Mudanca**: Adicionado listener `visibilitychange` que faz poll imediato quando a aba volta a ficar visivel (respeita mutex lock)
+   603→**Status**: ✅ CONCLUIDO
+   604→
+   605→---
+   606→
+   607→## Task ID: 44 (MEDIO — console.error no fetchESPNDate)
+   608→**Arquivo modificado**: `src/app/api/live-scores/route.ts`
+   609→**Mudanca**: `catch {}` → `catch (err) { console.error(...) }` no fetchESPNDate (debugging de falhas de rede)
+   610→**Status**: ✅ CONCLUIDO
+   611→
+   612→---
+   613→
+   614→## Task ID: 45 (VALIDACAO FINAL)
+   615→**Resultados**:
+   616→- `npx tsc --noEmit`: Zero erros TypeScript
+   617→- `npm run build`: Compiled successfully (2.6s)
+   618→- 0 ocorrencias de `text-[10px]` ou `text-[9px]` em src/
+   619→- 0 ocorrencias de `yellow-` em componentes (exceto VisualBracket que usa hex inline)
+   620→- 0 ocorrencias de `Decisoes` (sem acento)
+   621→**Status**: ✅ CONCLUIDO
+   622→
+   623→---
+   624→
+   625→## Resumo Fase 4
+   626→| # | Tarefa | Prioridade | Status |
+   627→|---|--------|-----------|--------|
+   628→| 28 | updateKnockoutLive limpa dados antigos | ALTO | ✅ |
+   629→| 29 | refreshNow feedback ao usuario | ALTO | ✅ |
+   630→| 30 | parseInt maskara score ausente | MEDIO | ✅ |
+   631→| 31 | JSON parse silenciado | MEDIO | ✅ |
+   632→| 32 | fairPlay inicializado + tipo unificado | MEDIO | ✅ |
+   633→| 33 | Middleware security headers + rate limit | ALTO | ✅ |
+   634→| 34 | revalidate 60s ESPN | ALTO | ✅ |
+   635→| 35 | _debug removido + erro seguro | ALTO | ✅ |
+   636→| 36 | getMatchLookup singleton | ALTO | ✅ |
+   637→| 37 | text min 11px WCAG | ALTO | ✅ |
+   638→| 38 | Contraste dark mode | ALTO | ✅ |
+   639→| 39 | prefers-reduced-motion | ALTO | ✅ |
+   640→| 40 | skip-to-content | ALTO | ✅ |
+   641→| 41 | Unificar fifa-gold | MEDIO | ✅ |
+   642→| 42 | Decisoes ortografico | BAIXA | ✅ |
+   643→| 43 | Page Visibility API | MEDIO | ✅ |
+   644→| 44 | console.error fetchESPN | MEDIO | ✅ |
+   645→| 45 | Build + TSC + verificacao | VALIDACAO | ✅ |
+   646→
+   647→**Total Geral**: 45 tarefas concluidas (11 Fase 1 + 12 Fase 2 + 4 Fase 3 + 18 Fase 4)
