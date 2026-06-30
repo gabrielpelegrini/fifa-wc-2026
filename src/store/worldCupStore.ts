@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MatchDef, TeamStanding, ThirdPlaceEntry } from '@/data/types';
+import { MatchDef, TeamStanding, ThirdPlaceEntry, ESPNMatchScore, RawKnockoutEvent } from '@/data/types';
 import { GROUP_MATCHES, BRACKET_CONFIG } from '@/data/worldcup';
 import { calculateGroupStandings } from '@/lib/standings';
 import { calculateThirdPlaceRanking } from '@/lib/thirdPlaceRanking';
@@ -14,19 +14,6 @@ interface KnockoutResult {
   penaltyAway?: number;
 }
 
-interface ESPNMatchScore {
-  matchId: string;
-  homeScore: number | null;
-  awayScore: number | null;
-  status: 'upcoming' | 'live' | 'finished';
-  minute?: number;
-  displayClock?: string;
-  espnDate?: string;
-  espnTime?: string;
-  espnVenue?: string;
-  espnCity?: string;
-}
-
 export interface KnockoutLiveEntry {
   status: 'upcoming' | 'live' | 'finished';
   homeScore: number | null;
@@ -35,22 +22,7 @@ export interface KnockoutLiveEntry {
   displayClock?: string;
 }
 
-export interface RawKnockoutEvent {
-  homeAbbr: string;
-  awayAbbr: string;
-  homeName: string;
-  awayName: string;
-  homeScore: string;
-  awayScore: string;
-  statusName: string;
-  clock?: number;
-  displayClock?: string;
-  shortDetail?: string;
-  date?: string;
-  time?: string;
-  venue?: string;
-  city?: string;
-}
+export type { RawKnockoutEvent };
 
 interface WorldCupState {
   matches: MatchDef[];

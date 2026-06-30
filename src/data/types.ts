@@ -85,3 +85,35 @@ export interface TimezoneOption {
   offset: string; // e.g. 'America/Sao_Paulo'
   utcLabel: string;
 }
+
+// ── ESPN Integration Types (shared between route.ts and worldCupStore.ts) ──
+
+export interface ESPNMatchScore {
+  matchId: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: 'upcoming' | 'live' | 'finished';
+  minute?: number;
+  displayClock?: string;
+  espnDate?: string;
+  espnTime?: string;
+  espnVenue?: string;
+  espnCity?: string;
+}
+
+export interface RawKnockoutEvent {
+  homeAbbr: string;
+  awayAbbr: string;
+  homeName: string;
+  awayName: string;
+  homeScore: string;
+  awayScore: string;
+  statusName: string;
+  clock?: number;
+  displayClock?: string;
+  shortDetail?: string;
+  date?: string;
+  time?: string;
+  venue?: string;
+  city?: string;
+}

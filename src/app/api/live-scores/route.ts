@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { GROUP_MATCHES } from '@/data/worldcup';
 import { ESPN_TO_TEAM, extractGroup } from '@/lib/espnMapping';
 import { classifyESPNStatus } from '@/lib/espnStatus';
+import type { ESPNMatchScore, RawKnockoutEvent } from '@/data/types';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -23,36 +24,6 @@ interface ESPNEvent {
     venue?: { fullName: string; address?: { city: string; country: string } };
     altGameNote?: string;
   }>;
-}
-
-interface MatchScore {
-  matchId: string;
-  homeScore: number | null;
-  awayScore: number | null;
-  status: 'upcoming' | 'live' | 'finished';
-  minute?: number;
-  displayClock?: string;
-  espnDate?: string;
-  espnTime?: string;
-  espnVenue?: string;
-  espnCity?: string;
-}
-
-interface RawKnockoutEvent {
-  homeAbbr: string;
-  awayAbbr: string;
-  homeName: string;
-  awayName: string;
-  homeScore: string;
-  awayScore: string;
-  statusName: string;
-  clock?: number;
-  displayClock?: string;
-  shortDetail?: string; // e.g. "Argentina wins in PK 4-2"
-  date?: string;        // ISO date from ESPN
-  time?: string;        // HH:MM UTC
-  venue?: string;
-  city?: string;
 }
 
 // ── NO in-memory cache ──────────────────────────────────────────────
@@ -172,7 +143,7 @@ export async function GET(request: Request) {
     const allEvents = await fetchAllDatesBatched(ALL_DATES, controller.signal);
 
     const lookup = getMatchLookup();
-    const scores: Record<string, MatchScore> = {};
+    const scores: Record<string, ESPNMatchScore> = {};
     const rawKnockout: RawKnockoutEvent[] = [];
 
     for (const event of allEvents) {

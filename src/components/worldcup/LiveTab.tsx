@@ -448,8 +448,8 @@ export default function LiveTab() {
                 awayTeamId={m.awayTeamId}
                 homeLabel={m.homeLabel}
                 awayLabel={m.awayLabel}
-                homeScore={m.homeScore ?? 0}
-                awayScore={m.awayScore ?? 0}
+                homeScore={m.homeScore}
+                awayScore={m.awayScore}
                 venue={m.venue}
                 city={m.city}
                 roundLabel={m.roundLabel}
@@ -552,11 +552,13 @@ function FinishedMatchCard({
 }: {
   homeTeamId: string | null; awayTeamId: string | null;
   homeLabel: string; awayLabel: string;
-  homeScore: number; awayScore: number;
+  homeScore: number | null; awayScore: number | null;
   venue: string; city: string; roundLabel: string;
 }) {
-  const isDraw = homeScore === awayScore;
-  const homeWon = homeScore > awayScore;
+  const hasScore = homeScore !== null && awayScore !== null;
+  const isDraw = hasScore && homeScore === awayScore;
+  const homeWon = hasScore && homeScore > awayScore;
+  const awayWon = hasScore && awayScore > homeScore;
 
   return (
     <div className="rounded-xl border border-border/50 bg-card/50 p-3 sm:p-4 opacity-80">
@@ -572,9 +574,9 @@ function FinishedMatchCard({
           <span className="text-sm truncate">{homeLabel}</span>
         </div>
         <span className="text-lg font-bold text-muted-foreground tabular-nums shrink-0">
-          {`${homeScore} × ${awayScore}`}
+          {hasScore ? `${homeScore} × ${awayScore}` : '– × –'}
         </span>
-        <div className={cn('flex items-center gap-2 flex-1 min-w-0 justify-end', !homeWon && !isDraw && 'font-semibold')}>
+        <div className={cn('flex items-center gap-2 flex-1 min-w-0 justify-end', awayWon && 'font-semibold')}>
           <span className="text-sm truncate">{awayLabel}</span>
           {awayTeamId && <FlagIcon teamId={awayTeamId} size={28} />}
         </div>
