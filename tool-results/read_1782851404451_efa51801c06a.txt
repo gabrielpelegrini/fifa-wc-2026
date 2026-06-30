@@ -1,0 +1,874 @@
+     1→'use client';
+     2→
+     3→import { useMemo } from 'react';
+     4→import {
+     5→  useWorldCupStore,
+     6→  type RawKnockoutEvent,
+     7→  type KnockoutLiveEntry,
+     8→} from '@/store/worldCupStore';
+     9→import { cn } from '@/lib/utils';
+    10→import { getTeamName } from '@/lib/standings';
+    11→import { ESPN_TO_TEAM } from '@/lib/espnMapping';
+    12→import FlagIcon from './FlagIcon';
+    13→import { Trophy, Radio, Star, CheckCircle2 } from 'lucide-react';
+    14→import { GROUP_MAP } from '@/data/worldcup';
+    15→import type { KnockoutMatch } from '@/data/types';
+    16→
+    17→// ═══════════════════════════════════════════════════════════════════════════════
+    18→// CONSTANTS
+    19→// ═══════════════════════════════════════════════════════════════════════════════
+    20→const RH = 54; // row height in px (16 rows for R32 base)
+    21→const ROWS = 16;
+    22→const TOTAL_H = ROWS * RH; // 864px
+    23→const COL_W = 178;
+    24→const CONN_W = 40;
+    25→const CARD_H = 42; // match card height
+    26→
+    27→const GOLD = '#D4AF37';
+    28→const GOLD_MID = 'rgba(212,175,55,0.50)';
+    29→const GOLD_DIM = 'rgba(212,175,55,0.25)';
+    30→const DARK_BG = 'bg-gray-950';
+    31→
+    32→// ═══════════════════════════════════════════════════════════════════════════════
+    33→// TYPES
+    34→// ═══════════════════════════════════════════════════════════════════════════════
+    35→interface MatchDisplay {
+    36→  id: string;
+    37→  round: string;
+    38→  homeTeamId: string | null;
+    39→  awayTeamId: string | null;
+    40→  homeLabel: string;
+    41→  awayLabel: string;
+    42→  homeSlot: string;
+    43→  awaySlot: string;
+    44→  homeScore: number | null;
+    45→  awayScore: number | null;
+    46→  penaltyHome?: number | null;
+    47→  penaltyAway?: number | null;
+    48→  status: 'upcoming' | 'live' | 'finished';
+    49→  liveMinute?: number;
+    50→  displayClock?: string;
+    51→  date: string;
+    52→  venue: string;
+    53→  city: string;
+    54→}
+    55→
+    56→// ═══════════════════════════════════════════════════════════════════════════════
+    57→// HELPER FUNCTIONS
+    58→// ═══════════════════════════════════════════════════════════════════════════════
+    59→
+    60→/** Calculate the vertical center Y for match at `index` in a round with `total` matches. */
+    61→function centerY(index: number, total: number): number {
+    62→  return (index + 0.5) * (ROWS / total) * RH;
+    63→}
+    64→
+    65→/** Format a bracket slot string for display: "1A" → "1° A", "3_ABCDF" → "3° ABCDF" */
+    66→function formatSlot(slot: string): string {
+    67→  const m1 = slot.match(/^1([A-L])$/);
+    68→  if (m1) return `1\u00B0 ${m1[1]}`;
+    69→  const m2 = slot.match(/^2([A-L])$/);
+    70→  if (m2) return `2\u00B0 ${m2[1]}`;
+    71→  const m3 = slot.match(/^3_([A-L]+)$/);
+    72→  if (m3) return `3\u00B0 ${m3[1]}`;
+    73→  if (slot.startsWith('V(')) return slot.replace('V(', 'Vencedor ').replace(')', '');
+    74→  if (slot.startsWith('P(')) return slot.replace('P(', 'Perdedor ').replace(')', '');
+    75→  return slot;
+    76→}
+    77→
+    78→/** Get all possible team IDs that could fill a given slot. */
+    79→function getSlotTeams(slot: string, allMatches: MatchDisplay[]): Set<string> {
+    80→  // Group winner: "1A"
+    81→  const m1 = slot.match(/^1([A-L])$/);
+    82→  if (m1) {
+    83→    const g = GROUP_MAP[m1[1]];
+    84→    return g ? new Set(g.teams) : new Set();
+    85→  }
+    86→  // Group runner-up: "2B"
+    87→  const m2 = slot.match(/^2([A-L])$/);
+    88→  if (m2) {
+    89→    const g = GROUP_MAP[m2[1]];
+    90→    return g ? new Set(g.teams) : new Set();
+    91→  }
+    92→  // Third place pool: "3_ABCDF"
+    93→  const m3 = slot.match(/^3_([A-L]+)$/);
+    94→  if (m3) {
+    95→    const teams = new Set<string>();
+    96→    for (const ch of m3[1]) {
+    97→      const g = GROUP_MAP[ch];
+    98→      if (g) g.teams.forEach((t) => teams.add(t));
+    99→    }
+   100→    return teams;
+   101→  }
+   102→  // Feeder match: "V(R32-01)" or "P(SF-01)"
+   103→  const mV = slot.match(/^[VP]\((.+?)\)$/);
+   104→  if (mV) {
+   105→    const feeder = allMatches.find((m) => m.id === mV[1]);
+   106→    const teams = new Set<string>();
+   107→    if (feeder) {
+   108→      if (feeder.homeTeamId) teams.add(feeder.homeTeamId);
+   109→      if (feeder.awayTeamId) teams.add(feeder.awayTeamId);
+   110→    }
+   111→    return teams;
+   112→  }
+   113→  return new Set();
+   114→}
+   115→
+   116→/** Try to resolve an unresolved match's teams from raw ESPN knockout events. */
+   117→function tryResolveFromRaw(
+   118→  match: {
+   119→    homeTeam: string | null;
+   120→    awayTeam: string | null;
+   121→    homeSlot: string;
+   122→    awaySlot: string;
+   123→  },
+   124→  rawEvents: RawKnockoutEvent[],
+   125→  allMatches: MatchDisplay[],
+   126→): { homeTeamId: string | null; awayTeamId: string | null } {
+   127→  if (match.homeTeam && match.awayTeam) {
+   128→    return { homeTeamId: match.homeTeam, awayTeamId: match.awayTeam };
+   129→  }
+   130→
+   131→  const homePossible = getSlotTeams(match.homeSlot, allMatches);
+   132→  const awayPossible = getSlotTeams(match.awaySlot, allMatches);
+   133→
+   134→  for (const evt of rawEvents) {
+   135→    const hId = ESPN_TO_TEAM[evt.homeAbbr];
+   136→    const aId = ESPN_TO_TEAM[evt.awayAbbr];
+   137→    if (!hId || !aId) continue;
+   138→
+   139→    // Direct match
+   140→    if (homePossible.has(hId) && awayPossible.has(aId)) {
+   141→      return { homeTeamId: hId, awayTeamId: aId };
+   142→    }
+   143→    // Reversed
+   144→    if (homePossible.has(aId) && awayPossible.has(hId)) {
+   145→      return { homeTeamId: aId, awayTeamId: hId };
+   146→    }
+   147→  }
+   148→
+   149→  return { homeTeamId: match.homeTeam, awayTeamId: match.awayTeam };
+   150→}
+   151→
+   152→/** Determine winner side from scores + penalties. */
+   153→function getWinners(match: MatchDisplay): { homeWinner: boolean; awayWinner: boolean } {
+   154→  let homeWinner = false;
+   155→  let awayWinner = false;
+   156→  const { homeScore, awayScore, penaltyHome, penaltyAway, status } = match;
+   157→  if (status === 'finished' && homeScore !== null && awayScore !== null) {
+   158→    if (homeScore !== awayScore) {
+   159→      homeWinner = homeScore > awayScore;
+   160→      awayWinner = awayScore > homeScore;
+   161→    } else if (penaltyHome != null && penaltyAway != null) {
+   162→      homeWinner = penaltyHome > penaltyAway;
+   163→      awayWinner = penaltyAway > penaltyHome;
+   164→    }
+   165→  }
+   166→  return { homeWinner, awayWinner };
+   167→}
+   168→
+   169→/** Format ISO date as DD/MM */
+   170→function fmtDate(iso: string): string {
+   171→  const p = iso.split('-');
+   172→  return p.length === 3 ? `${p[2]}/${p[1]}` : iso.slice(5);
+   173→}
+   174→
+   175→// ═══════════════════════════════════════════════════════════════════════════════
+   176→// BRACKET ENRICHMENT
+   177→// ═══════════════════════════════════════════════════════════════════════════════
+   178→
+   179→function enrichMatch(
+   180→  m: KnockoutMatch,
+   181→  liveInfo: Record<string, KnockoutLiveEntry>,
+   182→  liveMatches: Record<string, number>,
+   183→): MatchDisplay {
+   184→  const live = liveInfo[m.id];
+   185→  const hasLive = live && (live.status === 'live' || live.status === 'finished');
+   186→
+   187→  let status: 'upcoming' | 'live' | 'finished' = 'upcoming';
+   188→  if (live) {
+   189→    status = live.status;
+   190→  } else if (m.homeScore !== null && m.awayScore !== null) {
+   191→    status = 'finished';
+   192→  }
+   193→
+   194→  return {
+   195→    id: m.id,
+   196→    round: m.round,
+   197→    homeTeamId: m.homeTeam,
+   198→    awayTeamId: m.awayTeam,
+   199→    homeLabel: m.homeTeam ? getTeamName(m.homeTeam) : formatSlot(m.homeSlot),
+   200→    awayLabel: m.awayTeam ? getTeamName(m.awayTeam) : formatSlot(m.awaySlot),
+   201→    homeSlot: m.homeSlot,
+   202→    awaySlot: m.awaySlot,
+   203→    homeScore: hasLive ? (live.homeScore ?? m.homeScore) : m.homeScore,
+   204→    awayScore: hasLive ? (live.awayScore ?? m.awayScore) : m.awayScore,
+   205→    penaltyHome: m.penaltyHome,
+   206→    penaltyAway: m.penaltyAway,
+   207→    status,
+   208→    liveMinute: liveMatches[m.id],
+   209→    displayClock: live?.displayClock,
+   210→    date: m.date,
+   211→    venue: m.venue,
+   212→    city: m.city,
+   213→  };
+   214→}
+   215→
+   216→/** Two-pass enrichment: first build base, then resolve unresolved teams from raw events. */
+   217→function buildEnrichedBracket(
+   218→  bracket: NonNullable<ReturnType<typeof useWorldCupStore.getState>['bracket']>,
+   219→  liveInfo: Record<string, KnockoutLiveEntry>,
+   220→  liveMatches: Record<string, number>,
+   221→  rawEvents: RawKnockoutEvent[],
+   222→) {
+   223→  // Pass 1: base enrichment from bracket + live data
+   224→  const allFlat: MatchDisplay[] = [
+   225→    ...bracket.r32.map((m) => enrichMatch(m, liveInfo, liveMatches)),
+   226→    ...bracket.r16.map((m) => enrichMatch(m, liveInfo, liveMatches)),
+   227→    ...bracket.qf.map((m) => enrichMatch(m, liveInfo, liveMatches)),
+   228→    ...bracket.sf.map((m) => enrichMatch(m, liveInfo, liveMatches)),
+   229→    enrichMatch(bracket.thirdPlace, liveInfo, liveMatches),
+   230→    enrichMatch(bracket.final, liveInfo, liveMatches),
+   231→  ];
+   232→
+   233→  // Pass 2: resolve unresolved teams from raw ESPN events
+   234→  const resolved = allFlat.map((m) => {
+   235→    if (m.homeTeamId && m.awayTeamId) return m;
+   236→    const { homeTeamId, awayTeamId } = tryResolveFromRaw(
+   237→      { homeTeam: m.homeTeamId, awayTeam: m.awayTeamId, homeSlot: m.homeSlot, awaySlot: m.awaySlot },
+   238→      rawEvents,
+   239→      allFlat,
+   240→    );
+   241→    const finalHome = homeTeamId || m.homeTeamId;
+   242→    const finalAway = awayTeamId || m.awayTeamId;
+   243→    return {
+   244→      ...m,
+   245→      homeTeamId: finalHome,
+   246→      awayTeamId: finalAway,
+   247→      homeLabel: finalHome ? getTeamName(finalHome) : formatSlot(m.homeSlot),
+   248→      awayLabel: finalAway ? getTeamName(finalAway) : formatSlot(m.awaySlot),
+   249→    };
+   250→  });
+   251→
+   252→  // Partition by round field (no fragile hardcoded slice indices)
+   253→  const byRound = new Map<string, MatchDisplay[]>();
+   254→  for (const m of resolved) {
+   255→    const arr = byRound.get(m.round) || [];
+   256→    arr.push(m);
+   257→    byRound.set(m.round, arr);
+   258→  }
+   259→  const get = (round: string) => (byRound.get(round) || []) as MatchDisplay[];
+   260→  const getOne = (round: string) => {
+   261→    const arr = byRound.get(round);
+   262→    return (arr && arr[0]) as MatchDisplay;
+   263→  };
+   264→
+   265→  return {
+   266→    r32: get('r32'),
+   267→    r16: get('r16'),
+   268→    qf: get('qf'),
+   269→    sf: get('sf'),
+   270→    thirdPlace: getOne('third_place'),
+   271→    final: getOne('final'),
+   272→  };
+   273→}
+   274→
+   275→// ═══════════════════════════════════════════════════════════════════════════════
+   276→// CONNECTOR SVG
+   277→// ═══════════════════════════════════════════════════════════════════════════════
+   278→
+   279→function ConnectorLines({
+   280→  fromCount,
+   281→  toCount,
+   282→}: {
+   283→  fromCount: number;
+   284→  toCount: number;
+   285→}) {
+   286→  const paths: React.ReactNode[] = [];
+   287→  const mx = CONN_W / 2;
+   288→
+   289→  for (let j = 0; j < toCount; j++) {
+   290→    const y1 = centerY(j * 2, fromCount);
+   291→    const y2 = centerY(j * 2 + 1, fromCount);
+   292→    const ymid = centerY(j, toCount);
+   293→
+   294→    paths.push(
+   295→      <g key={j} opacity={0.7}>
+   296→        {/* Left horizontal lines from each feeder */}
+   297→        <line x1={0} y1={y1} x2={mx} y2={y1} stroke={GOLD_MID} strokeWidth={1.5} strokeDasharray="6 3" />
+   298→        <line x1={0} y1={y2} x2={mx} y2={y2} stroke={GOLD_MID} strokeWidth={1.5} strokeDasharray="6 3" />
+   299→        {/* Vertical connector between feeders */}
+   300→        <line x1={mx} y1={y1} x2={mx} y2={y2} stroke={GOLD_MID} strokeWidth={1.5} strokeDasharray="6 3" />
+   301→        {/* Right horizontal line to target match */}
+   302→        <line x1={mx} y1={ymid} x2={CONN_W} y2={ymid} stroke={GOLD_MID} strokeWidth={1.5} strokeDasharray="6 3" />
+   303→        {/* Junction dot */}
+   304→        <circle cx={mx} cy={ymid} r={2.5} fill={GOLD} opacity={0.8} />
+   305→      </g>,
+   306→    );
+   307→  }
+   308→
+   309→  return (
+   310→    <svg width={CONN_W} height={TOTAL_H} className="flex-shrink-0" aria-hidden="true">
+   311→      {paths}
+   312→    </svg>
+   313→  );
+   314→}
+   315→
+   316→// ═══════════════════════════════════════════════════════════════════════════════
+   317→// MATCH CARD (DESKTOP)
+   318→// ═══════════════════════════════════════════════════════════════════════════════
+   319→
+   320→function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: boolean }) {
+   321→  const hasScore = match.homeScore !== null && match.awayScore !== null;
+   322→  const isLive = match.status === 'live';
+   323→  const isFinished = match.status === 'finished';
+   324→  const isPenalty =
+   325→    isFinished &&
+   326→    hasScore &&
+   327→    match.homeScore === match.awayScore &&
+   328→    match.penaltyHome != null &&
+   329→    match.penaltyAway != null;
+   330→  const { homeWinner, awayWinner } = getWinners(match);
+   331→  const hasTeams = match.homeTeamId !== null && match.awayTeamId !== null;
+   332→
+   333→  return (
+   334→    <div
+   335→      className={cn(
+   336→        'rounded-lg border transition-all overflow-hidden',
+   337→        isFinal ? 'p-2' : 'p-1.5',
+   338→        isLive && 'bg-red-950/30 border-red-500/50 live-glow',
+   339→        isFinished && hasScore && !isLive && 'bg-gray-900 border-[#D4AF37]/40',
+   340→        !isLive && !isFinished && 'bg-gray-900/80 border-gray-800/50',
+   341→        !hasTeams && 'opacity-35',
+   342→        isFinal && isFinished && hasScore && 'ring-1 ring-[#D4AF37]/30',
+   343→      )}
+   344→    >
+   345→      {/* Home team row */}
+   346→      <div className="flex items-center gap-1.5" style={{ height: isFinal ? 22 : 18 }}>
+   347→        {match.homeTeamId ? (
+   348→          <FlagIcon teamId={match.homeTeamId} size={isFinal ? 22 : 16} />
+   349→        ) : (
+   350→          <div className="w-4 h-4 flex-shrink-0" />
+   351→        )}
+   352→        <span
+   353→          className={cn(
+   354→            'flex-1 truncate leading-tight',
+   355→            isFinal ? 'text-xs' : 'text-[11px]',
+   356→            isFinished && homeWinner && 'text-fifa-green font-bold',
+   357→            !isFinished && match.homeTeamId && 'text-gray-200 font-medium',
+   358→            !match.homeTeamId && 'text-gray-500 italic',
+   359→            isLive && match.homeTeamId && 'text-white',
+   360→          )}
+   361→        >
+   362→          {match.homeLabel}
+   363→        </span>
+   364→        {hasScore && (
+   365→          <span
+   366→            className={cn(
+   367→              'font-bold tabular-nums min-w-[14px] text-right',
+   368→              isFinal ? 'text-sm' : 'text-[11px]',
+   369→              isFinished && homeWinner && 'text-fifa-green',
+   370→              isLive && 'text-white',
+   371→            )}
+   372→          >
+   373→            {match.homeScore}
+   374→          </span>
+   375→        )}
+   376→      </div>
+   377→
+   378→      {/* Away team row */}
+   379→      <div className="flex items-center gap-1.5 mt-0.5" style={{ height: isFinal ? 22 : 18 }}>
+   380→        {match.awayTeamId ? (
+   381→          <FlagIcon teamId={match.awayTeamId} size={isFinal ? 22 : 16} />
+   382→        ) : (
+   383→          <div className="w-4 h-4 flex-shrink-0" />
+   384→        )}
+   385→        <span
+   386→          className={cn(
+   387→            'flex-1 truncate leading-tight',
+   388→            isFinal ? 'text-xs' : 'text-[11px]',
+   389→            isFinished && awayWinner && 'text-fifa-green font-bold',
+   390→            !isFinished && match.awayTeamId && 'text-gray-200 font-medium',
+   391→            !match.awayTeamId && 'text-gray-500 italic',
+   392→            isLive && match.awayTeamId && 'text-white',
+   393→          )}
+   394→        >
+   395→          {match.awayLabel}
+   396→        </span>
+   397→        {hasScore && (
+   398→          <span
+   399→            className={cn(
+   400→              'font-bold tabular-nums min-w-[14px] text-right',
+   401→              isFinal ? 'text-sm' : 'text-[11px]',
+   402→              isFinished && awayWinner && 'text-fifa-green',
+   403→              isLive && 'text-white',
+   404→            )}
+   405→          >
+   406→            {match.awayScore}
+   407→          </span>
+   408→        )}
+   409→      </div>
+   410→
+   411→      {/* Live indicator */}
+   412→      {isLive && (
+   413→        <div className="flex items-center gap-1 mt-1" role="status" aria-label={`Ao vivo, minuto ${match.liveMinute ?? 0}`}>
+   414→          <Radio className="w-2.5 h-2.5 text-red-400 animate-pulse" />
+   415→          <span className="text-[11px] font-bold text-red-400 tracking-wide">
+   416→            {match.liveMinute && match.liveMinute > 0 ? `${match.liveMinute}'` : 'AO VIVO'}
+   417→            {match.displayClock && (
+   418→              <span className="ml-1 text-red-400/60">{match.displayClock}</span>
+   419→            )}
+   420→          </span>
+   421→        </div>
+   422→      )}
+   423→
+   424→      {/* Penalty info */}
+   425→      {isPenalty && (
+   426→        <div className="text-[11px] text-[#D4AF37] mt-0.5 font-semibold text-center tracking-wide">
+   427→          PEN {match.penaltyHome}\u2013{match.penaltyAway}
+   428→        </div>
+   429→      )}
+   430→
+   431→      {/* Finished check */}
+   432→      {isFinished && !isLive && !isFinal && (
+   433→        <div className="flex items-center gap-1 mt-0.5 text-gray-600">
+   434→          <CheckCircle2 className="w-2.5 h-2.5" />
+   435→          <span className="text-[11px]">Encerrado</span>
+   436→        </div>
+   437→      )}
+   438→
+   439→      {/* Final venue */}
+   440→      {isFinal && (
+   441→        <div className="text-[11px] text-gray-500 mt-1 text-center truncate">
+   442→          {match.venue} &middot; {match.city}
+   443→        </div>
+   444→      )}
+   445→    </div>
+   446→  );
+   447→}
+   448→
+   449→// ═══════════════════════════════════════════════════════════════════════════════
+   450→// TROPHY SECTION (between semifinals)
+   451→// ═══════════════════════════════════════════════════════════════════════════════
+   452→
+   453→function TrophySection() {
+   454→  return (
+   455→    <div
+   456→      className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center gap-1"
+   457→      style={{ top: TOTAL_H / 2 - 44 }}
+   458→      aria-hidden="true"
+   459→    >
+   460→      <Star className="w-4 h-4 text-[#D4AF37] opacity-60" />
+   461→      <div className="relative">
+   462→        <div className="absolute inset-0 blur-md bg-[#D4AF37]/20 rounded-full" />
+   463→        <Trophy className="w-14 h-14 text-[#D4AF37] relative" strokeWidth={1.5} />
+   464→      </div>
+   465→      <Star className="w-4 h-4 text-[#D4AF37] opacity-60" />
+   466→    </div>
+   467→  );
+   468→}
+   469→
+   470→// ═══════════════════════════════════════════════════════════════════════════════
+   471→// DESKTOP BRACKET
+   472→// ═══════════════════════════════════════════════════════════════════════════════
+   473→
+   474→function RoundColumn({
+   475→  title,
+   476→  matches,
+   477→  totalInRound,
+   478→}: {
+   479→  title: string;
+   480→  matches: MatchDisplay[];
+   481→  totalInRound: number;
+   482→}) {
+   483→  return (
+   484→    <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
+   485→      {/* Round label */}
+   486→      <div className="h-8 flex items-center justify-center mb-1">
+   487→        <span className="text-[11px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
+   488→          {title}
+   489→        </span>
+   490→      </div>
+   491→      {/* Match column */}
+   492→      <div className="relative" style={{ height: TOTAL_H }}>
+   493→        {matches.map((m, i) => {
+   494→          const cy = centerY(i, totalInRound);
+   495→          return (
+   496→            <div
+   497→              key={m.id}
+   498→              className="absolute w-full"
+   499→              style={{ top: cy - CARD_H / 2 }}
+   500→            >
+   501→              <MatchCard match={m} />
+   502→            </div>
+   503→          );
+   504→        })}
+   505→      </div>
+   506→    </div>
+   507→  );
+   508→}
+   509→
+   510→function SingleMatchColumn({
+   511→  match,
+   512→  label,
+   513→  totalSlots,
+   514→  matchIndex,
+   515→  isFinal = false,
+   516→}: {
+   517→  match: MatchDisplay;
+   518→  label: string;
+   519→  totalSlots: number;
+   520→  matchIndex: number;
+   521→  isFinal?: boolean;
+   522→}) {
+   523→  const cy = centerY(matchIndex, totalSlots);
+   524→  return (
+   525→    <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
+   526→      <div className="h-8 flex items-center justify-center mb-1">
+   527→        <span className="text-[11px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
+   528→          {label}
+   529→        </span>
+   530→      </div>
+   531→      <div className="relative" style={{ height: TOTAL_H }}>
+   532→        <div className="absolute w-full" style={{ top: cy - CARD_H / 2 - 4 }}>
+   533→          <MatchCard match={match} isFinal={isFinal} />
+   534→        </div>
+   535→      </div>
+   536→    </div>
+   537→  );
+   538→}
+   539→
+   540→function DesktopBracket(data: {
+   541→  r32: MatchDisplay[];
+   542→  r16: MatchDisplay[];
+   543→  qf: MatchDisplay[];
+   544→  sf: MatchDisplay[];
+   545→  thirdPlace: MatchDisplay;
+   546→  final: MatchDisplay;
+   547→}) {
+   548→  const { r32, r16, qf, sf, thirdPlace, final } = data;
+   549→
+   550→  return (
+   551→    <div
+   552→      className="min-w-[1200px] overflow-x-auto"
+   553→      role="region"
+   554→      aria-label="Chaveamento visual mata-mata"
+   555→    >
+   556→      <div className="flex items-start justify-center py-2 px-4">
+   557→        {/* R32 */}
+   558→        <RoundColumn title="32 AVOS" matches={r32} totalInRound={16} />
+   559→
+   560→        {/* Connector R32 → R16 */}
+   561→        <div className="flex-shrink-0 flex items-center" style={{ height: 8 + TOTAL_H }}>
+   562→          <ConnectorLines fromCount={16} toCount={8} />
+   563→        </div>
+   564→
+   565→        {/* R16 */}
+   566→        <RoundColumn title="OITAVAS" matches={r16} totalInRound={8} />
+   567→
+   568→        {/* Connector R16 → QF */}
+   569→        <div className="flex-shrink-0 flex items-center" style={{ height: 8 + TOTAL_H }}>
+   570→          <ConnectorLines fromCount={8} toCount={4} />
+   571→        </div>
+   572→
+   573→        {/* QF */}
+   574→        <RoundColumn title="QUARTAS" matches={qf} totalInRound={4} />
+   575→
+   576→        {/* Connector QF → SF */}
+   577→        <div className="flex-shrink-0 flex items-center" style={{ height: 8 + TOTAL_H }}>
+   578→          <ConnectorLines fromCount={4} toCount={2} />
+   579→        </div>
+   580→
+   581→        {/* SF + Trophy + 3rd Place */}
+   582→        <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W + 10 }}>
+   583→          <div className="h-8 flex items-center justify-center mb-1">
+   584→            <span className="text-[11px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
+   585→              SEMIFINAIS
+   586→            </span>
+   587→          </div>
+   588→          <div className="relative" style={{ height: TOTAL_H }}>
+   589→            {/* SF-01 */}
+   590→            <div
+   591→              className="absolute w-full"
+   592→              style={{ top: centerY(0, 2) - CARD_H / 2 }}
+   593→            >
+   594→              <MatchCard match={sf[0]} />
+   595→            </div>
+   596→
+   597→            {/* Trophy between semis */}
+   598→            <TrophySection />
+   599→
+   600→            {/* SF-02 */}
+   601→            <div
+   602→              className="absolute w-full"
+   603→              style={{ top: centerY(1, 2) - CARD_H / 2 }}
+   604→            >
+   605→              <MatchCard match={sf[1]} />
+   606→            </div>
+   607→
+   608→            {/* 3rd Place — positioned below SF-02 */}
+   609→            <div
+   610→              className="absolute w-full"
+   611→              style={{ top: TOTAL_H - CARD_H - 12 }}
+   612→            >
+   613→              <div className="text-[11px] font-bold text-[#D4AF37]/60 text-center mb-1 tracking-wider uppercase">
+   614→                3\u00B0 Lugar
+   615→              </div>
+   616→              <MatchCard match={thirdPlace} />
+   617→            </div>
+   618→          </div>
+   619→        </div>
+   620→
+   621→        {/* Connector SF → Final */}
+   622→        <div className="flex-shrink-0 flex items-center" style={{ height: 8 + TOTAL_H }}>
+   623→          <ConnectorLines fromCount={2} toCount={1} />
+   624→        </div>
+   625→
+   626→        {/* Final */}
+   627→        <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
+   628→          <div className="h-8 flex items-center justify-center mb-1">
+   629→            <span className="text-[11px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
+   630→              FINAL
+   631→            </span>
+   632→          </div>
+   633→          <div className="relative flex items-center" style={{ height: TOTAL_H, width: COL_W }}>
+   634→            <div
+   635→              className="absolute w-full"
+   636→              style={{ top: centerY(0, 1) - CARD_H / 2 - 10 }}
+   637→            >
+   638→              <MatchCard match={final} isFinal />
+   639→            </div>
+   640→          </div>
+   641→        </div>
+   642→      </div>
+   643→    </div>
+   644→  );
+   645→}
+   646→
+   647→// ═══════════════════════════════════════════════════════════════════════════════
+   648→// MOBILE BRACKET
+   649→// ═══════════════════════════════════════════════════════════════════════════════
+   650→
+   651→function MobileMatchRow({ match, highlight = false }: { match: MatchDisplay; highlight?: boolean }) {
+   652→  const hasScore = match.homeScore !== null && match.awayScore !== null;
+   653→  const isLive = match.status === 'live';
+   654→  const isFinished = match.status === 'finished';
+   655→  const isPenalty =
+   656→    isFinished &&
+   657→    hasScore &&
+   658→    match.homeScore === match.awayScore &&
+   659→    match.penaltyHome != null &&
+   660→    match.penaltyAway != null;
+   661→  const { homeWinner, awayWinner } = getWinners(match);
+   662→
+   663→  return (
+   664→    <div
+   665→      className={cn(
+   666→        'flex items-center gap-2 px-3 py-2.5 border-b border-gray-800/40 last:border-b-0',
+   667→        highlight && 'bg-[#D4AF37]/5',
+   668→      )}
+   669→      role="group"
+   670→      aria-label={`${match.homeLabel} vs ${match.awayLabel}${isLive ? ' - Ao vivo' : ''}`}
+   671→    >
+   672→      <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+   673→        {/* Home */}
+   674→        <div className="flex items-center gap-1.5 min-w-0">
+   675→          {match.homeTeamId ? (
+   676→            <FlagIcon teamId={match.homeTeamId} size={20} />
+   677→          ) : (
+   678→            <div className="w-5 h-5 flex-shrink-0 rounded bg-gray-800 flex items-center justify-center">
+   679→              <span className="text-[11px] text-gray-600 font-bold">?</span>
+   680→            </div>
+   681→          )}
+   682→          <span
+   683→            className={cn(
+   684→              'text-[13px] font-medium truncate',
+   685→              isFinished && homeWinner && 'text-fifa-green font-bold',
+   686→              !match.homeTeamId && 'text-gray-600 italic text-[11px]',
+   687→            )}
+   688→          >
+   689→            {match.homeLabel}
+   690→          </span>
+   691→        </div>
+   692→
+   693→        {/* Score / Status */}
+   694→        <div className="text-center shrink-0 min-w-[40px]">
+   695→          {hasScore ? (
+   696→            <div className="flex flex-col items-center leading-tight">
+   697→              <div className="flex items-center gap-1.5">
+   698→                <span
+   699→                  className={cn(
+   700→                    'text-sm font-bold tabular-nums',
+   701→                    homeWinner && 'text-fifa-green',
+   702→                    isLive && 'text-white',
+   703→                  )}
+   704→                >
+   705→                  {match.homeScore}
+   706→                </span>
+   707→                <span className="text-[11px] text-gray-600">&times;</span>
+   708→                <span
+   709→                  className={cn(
+   710→                    'text-sm font-bold tabular-nums',
+   711→                    awayWinner && 'text-fifa-green',
+   712→                    isLive && 'text-white',
+   713→                  )}
+   714→                >
+   715→                  {match.awayScore}
+   716→                </span>
+   717→              </div>
+   718→              {isPenalty && (
+   719→                <span className="text-[11px] text-[#D4AF37] font-semibold">
+   720→                  PEN {match.penaltyHome}&ndash;{match.penaltyAway}
+   721→                </span>
+   722→              )}
+   723→            </div>
+   724→          ) : isLive ? (
+   725→            <div className="flex items-center gap-1 justify-center">
+   726→              <Radio className="w-3 h-3 text-red-400 animate-pulse" />
+   727→              <span className="text-[11px] font-bold text-red-400">
+   728→                {match.liveMinute && match.liveMinute > 0 ? `${match.liveMinute}'` : 'AO VIVO'}
+   729→              </span>
+   730→            </div>
+   731→          ) : (
+   732→            <span className="text-[11px] text-gray-600">{fmtDate(match.date)}</span>
+   733→          )}
+   734→        </div>
+   735→
+   736→        {/* Away */}
+   737→        <div className="flex items-center gap-1.5 min-w-0 justify-end">
+   738→          <span
+   739→            className={cn(
+   740→              'text-[13px] font-medium truncate text-right',
+   741→              isFinished && awayWinner && 'text-fifa-green font-bold',
+   742→              !match.awayTeamId && 'text-gray-600 italic text-[11px]',
+   743→            )}
+   744→          >
+   745→            {match.awayLabel}
+   746→          </span>
+   747→          {match.awayTeamId ? (
+   748→            <FlagIcon teamId={match.awayTeamId} size={20} />
+   749→          ) : (
+   750→            <div className="w-5 h-5 flex-shrink-0 rounded bg-gray-800 flex items-center justify-center">
+   751→              <span className="text-[11px] text-gray-600 font-bold">?</span>
+   752→            </div>
+   753→          )}
+   754→        </div>
+   755→      </div>
+   756→    </div>
+   757→  );
+   758→}
+   759→
+   760→function MobileRoundSection({
+   761→  title,
+   762→  matches,
+   763→}: {
+   764→  title: string;
+   765→  matches: MatchDisplay[];
+   766→}) {
+   767→  return (
+   768→    <div className="rounded-xl border border-gray-800/50 overflow-hidden">
+   769→      <div className="bg-gradient-to-r from-[#D4AF37]/10 to-transparent px-4 py-2.5 border-b border-gray-800/40">
+   770→        <span className="text-xs font-bold tracking-[0.15em] text-[#D4AF37] uppercase">
+   771→          {title}
+   772→        </span>
+   773→        <span className="text-[11px] text-gray-600 ml-2">({matches.length} jogos)</span>
+   774→      </div>
+   775→      <div className="max-h-96 overflow-y-auto scrollbar-thin">
+   776→        {matches.map((m) => (
+   777→          <MobileMatchRow key={m.id} match={m} />
+   778→        ))}
+   779→      </div>
+   780→    </div>
+   781→  );
+   782→}
+   783→
+   784→function MobileBracket(data: {
+   785→  r32: MatchDisplay[];
+   786→  r16: MatchDisplay[];
+   787→  qf: MatchDisplay[];
+   788→  sf: MatchDisplay[];
+   789→  thirdPlace: MatchDisplay;
+   790→  final: MatchDisplay;
+   791→}) {
+   792→  const { r32, r16, qf, sf, thirdPlace, final } = data;
+   793→
+   794→  const rounds = [
+   795→    { title: '32 Avos de Final', matches: r32 },
+   796→    { title: 'Oitavas de Final', matches: r16 },
+   797→    { title: 'Quartas de Final', matches: qf },
+   798→    { title: 'Semifinais', matches: sf },
+   799→  ];
+   800→
+   801→  return (
+   802→    <div className="space-y-4">
+   803→      {rounds.map((r) => (
+   804→        <MobileRoundSection key={r.title} title={r.title} matches={r.matches} />
+   805→      ))}
+   806→
+   807→      {/* Decisoes: 3rd place + Final */}
+   808→      <div className="rounded-xl border border-[#D4AF37]/20 overflow-hidden">
+   809→        <div className="bg-gradient-to-r from-[#D4AF37]/15 to-transparent px-4 py-2.5 border-b border-gray-800/40">
+   810→          <span className="text-xs font-bold tracking-[0.15em] text-[#D4AF37] uppercase">
+   811→            Decis\u00F5es
+   812→          </span>
+   813→        </div>
+   814→        <div>
+   815→          <MobileMatchRow match={thirdPlace} />
+   816→          <MobileMatchRow match={final} highlight />
+   817→        </div>
+   818→      </div>
+   819→    </div>
+   820→  );
+   821→}
+   822→
+   823→// ═══════════════════════════════════════════════════════════════════════════════
+   824→// MAIN EXPORT
+   825→// ═══════════════════════════════════════════════════════════════════════════════
+   826→
+   827→export default function VisualBracket() {
+   828→  const { bracket, knockoutLiveInfo, rawKnockoutEvents, liveMatches } = useWorldCupStore();
+   829→
+   830→  const data = useMemo(() => {
+   831→    if (!bracket) return null;
+   832→    return buildEnrichedBracket(bracket, knockoutLiveInfo, liveMatches, rawKnockoutEvents);
+   833→  }, [bracket, knockoutLiveInfo, liveMatches, rawKnockoutEvents]);
+   834→
+   835→  if (!bracket || !data) {
+   836→    return (
+   837→      <div className={cn(DARK_BG, 'rounded-2xl p-8 text-center')}>
+   838→        <p className="text-gray-500 text-sm">Carregando chaveamento...</p>
+   839→      </div>
+   840→    );
+   841→  }
+   842→
+   843→  return (
+   844→    <div className={cn(DARK_BG, 'rounded-2xl overflow-hidden')}>
+   845→      {/* ── Title ── */}
+   846→      <div className="relative px-6 pt-6 pb-4 text-center">
+   847→        {/* Decorative top line */}
+   848→        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
+   849→        <div className="flex items-center justify-center gap-3">
+   850→          <Star className="w-4 h-4 text-[#D4AF37] opacity-70" />
+   851→          <Trophy className="w-5 h-5 text-[#D4AF37]" />
+   852→          <h2 className="text-xl font-extrabold tracking-[0.25em] text-[#D4AF37] uppercase">
+   853→            Mata-Mata
+   854→          </h2>
+   855→          <Trophy className="w-5 h-5 text-[#D4AF37]" />
+   856→          <Star className="w-4 h-4 text-[#D4AF37] opacity-70" />
+   857→        </div>
+   858→        <p className="text-[11px] text-gray-500 mt-1 tracking-wide">
+   859→          FIFA World Cup 2026 &mdash; Chaveamento Eliminat&oacute;rio
+   860→        </p>
+   861→      </div>
+   862→
+   863→      {/* ── Desktop: Horizontal Tree ── */}
+   864→      <div className="hidden lg:block">
+   865→        <DesktopBracket {...data} />
+   866→      </div>
+   867→
+   868→      {/* ── Mobile: Vertical List ── */}
+   869→      <div className="lg:hidden px-3 pb-6">
+   870→        <MobileBracket {...data} />
+   871→      </div>
+   872→    </div>
+   873→  );
+   874→}
