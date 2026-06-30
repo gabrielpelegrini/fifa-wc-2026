@@ -2,34 +2,128 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
-import { TEAMS, GROUPS } from '@/data/worldcup';
+import { TEAMS, GROUPS, BRACKET_CONFIG } from '@/data/worldcup';
 import { getTeamName } from '@/lib/standings';
 import { formatTime, formatDate, getLocalDate } from '@/lib/dateUtils';
+import { ESPN_TO_TEAM } from '@/lib/espnMapping';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
 import { Clock, Filter, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
+// Round label map
+const ROUND_LABELS: Record<string, string> = {
+  r32: '32 Avos', r16: 'Oitavas', qf: 'Quartas', sf: 'Semifinal',
+  third_place: '3° Lugar', final: 'Final',
+};
+
+interface CalendarMatch {
+  id: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  homeLabel: string;
+  awayLabel: string;
+  date: string;
+  time: string;
+  venue: string;
+  city: string;
+  country: string;
+  group: string;
+  round: number;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: 'upcoming' | 'live' | 'finished';
+  liveMinute?: number;
+  roundLabel: string;
+}
+
 export default function Calendar() {
   const {
-    matches,
-    timezone,
-    filterGroup,
-    filterTeam,
-    filterRound,
-    setFilterGroup,
-    setFilterTeam,
-    setFilterRound,
-    liveMatches,
+    matches, timezone,
+    filterGroup, filterTeam, filterRound,
+    setFilterGroup, setFilterTeam, setFilterRound,
+    liveMatches, rawKnockoutEvents, bracket, knockoutLiveInfo,
   } = useWorldCupStore();
+
+  // Build unified match list: group + knockout
+  const allMatches = useMemo((): CalendarMatch[] => {
+    const list: CalendarMatch[] = [];
+
+    // 1) Group stage
+    for (const m of matches) {
+      list.push({
+        id: m.id, homeTeam: m.homeTeam, awayTeam: m.awayTeam,
+        homeLabel: getTeamName(m.homeTeam), awayLabel: getTeamName(m.awayTeam),
+        date: m.date, time: m.time, venue: m.venue, city: m.city, country: m.country,
+        group: m.group || '', round: m.round ?? 0,
+        homeScore: m.homeScore ?? null, awayScore: m.awayScore ?? null,
+        status: m.status || 'upcoming', liveMinute: liveMatches[m.id],
+        roundLabel: `Grupo ${m.group || ''}`,
+      });
+    }
+
+    // 2) Bracket knockout matches (resolved)
+    if (bracket) {
+      const koMatches = [...bracket.r32, ...bracket.r16, ...bracket.qf, ...bracket.sf, bracket.thirdPlace, bracket.final];
+      for (const m of koMatches) {
+        const koInfo = knockoutLiveInfo[m.id];
+        const hasResult = m.homeScore !== null && m.awayScore !== null;
+        const status = koInfo?.status ?? (hasResult ? 'finished' : 'upcoming');
+        const ht = m.homeTeam;
+        const at = m.awayTeam;
+        list.push({
+          id: m.id, homeTeam: ht, awayTeam: at,
+          homeLabel: ht ? getTeamName(ht) : m.homeSlot,
+          awayLabel: at ? getTeamName(at) : m.awaySlot,
+          date: m.date, time: m.time, venue: m.venue, city: m.city, country: '',
+          group: '', round: 4,
+          homeScore: koInfo?.homeScore ?? m.homeScore,
+          awayScore: koInfo?.awayScore ?? m.awayScore,
+          status, liveMinute: liveMatches[m.id],
+          roundLabel: ROUND_LABELS[m.round] || m.round,
+        });
+      }
+    }
+
+    // 3) Raw ESPN knockout fallback (for unmatched events)
+    for (const evt of rawKnockoutEvents) {
+      const homeId = ESPN_TO_TEAM[evt.homeAbbr];
+      const awayId = ESPN_TO_TEAM[evt.awayAbbr];
+      // Skip if already in bracket (check both orders)
+      if (homeId && awayId && list.some(m =>
+        (m.homeTeam === homeId && m.awayTeam === awayId) ||
+        (m.homeTeam === awayId && m.awayTeam === homeId)
+      )) continue;
+      const status = evt.statusName === 'STATUS_FULL_TIME' ? 'finished'
+        : ['STATUS_IN_PROGRESS','STATUS_HALFTIME','STATUS_1ST_PERIOD','STATUS_2ND_PERIOD','STATUS_EXTRA_TIME','STATUS_PENALTY_SHOOTOUT'].includes(evt.statusName)
+          ? 'live' as const : 'upcoming' as const;
+      const hasScore = status !== 'upcoming';
+      list.push({
+        id: `espn-ko-${evt.homeAbbr}-${evt.awayAbbr}`,
+        homeTeam: homeId ?? null, awayTeam: awayId ?? null,
+        homeLabel: evt.homeName, awayLabel: evt.awayName,
+        date: evt.date || '', time: evt.time || '',
+        venue: evt.venue || '', city: evt.city || '', country: '',
+        group: '', round: 4,
+        homeScore: hasScore ? (parseInt(evt.homeScore, 10) || 0) : null,
+        awayScore: hasScore ? (parseInt(evt.awayScore, 10) || 0) : null,
+        status,
+        liveMinute: status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined,
+        roundLabel: 'Mata-mata',
+      });
+    }
+
+    return list;
+  }, [matches, bracket, knockoutLiveInfo, rawKnockoutEvents, liveMatches]);
 
   // Compute the user-local date for each match (converts UTC date+time → user timezone)
   const matchLocalDates = useMemo(() => {
     const map = new Map<string, string>(); // matchId → localDate
-    for (const m of matches) {
+    for (const m of allMatches) {
+      if (!m.date || !m.time) continue;
       map.set(m.id, getLocalDate(m.date, m.time, timezone));
     }
     return map;
-  }, [matches, timezone]);
+  }, [allMatches, timezone]);
 
   // All unique LOCAL dates from matches, sorted
   const allDates = useMemo(() => {
@@ -60,20 +154,25 @@ export default function Calendar() {
 
   // Apply filters then slice to selected LOCAL date
   const dayMatches = useMemo(() => {
-    let result = matches.filter(m => matchLocalDates.get(m.id) === selectedDate);
+    let result = allMatches.filter(m => matchLocalDates.get(m.id) === selectedDate);
 
     if (filterGroup) {
       result = result.filter(m => m.group === filterGroup);
     }
     if (filterTeam) {
-      result = result.filter(m => m.homeTeam === filterTeam || m.awayTeam === filterTeam);
+      result = result.filter(m => m.homeTeam === filterTeam || m.awayTeam === filterTeam ||
+        m.homeLabel === filterTeam || m.awayLabel === filterTeam);
     }
     if (filterRound) {
-      result = result.filter(m => m.round === parseInt(filterRound));
+      if (filterRound === '4') {
+        result = result.filter(m => m.round === 4);
+      } else {
+        result = result.filter(m => m.round === parseInt(filterRound));
+      }
     }
 
     return result;
-  }, [matches, selectedDate, filterGroup, filterTeam, filterRound, matchLocalDates]);
+  }, [allMatches, selectedDate, filterGroup, filterTeam, filterRound, matchLocalDates]);
 
   // Group matches by time slot within the day
   const groupedByTime = useMemo(() => {
@@ -142,8 +241,8 @@ export default function Calendar() {
       {/* Quick date dots */}
       <div className="flex justify-center gap-1 flex-wrap">
         {allDates.map((d, i) => {
-          const hasFinished = matches.some(m => matchLocalDates.get(m.id) === d && m.status === 'finished');
-          const hasLive = matches.some(m => matchLocalDates.get(m.id) === d && m.status === 'live');
+          const hasFinished = allMatches.some(m => matchLocalDates.get(m.id) === d && m.status === 'finished');
+          const hasLive = allMatches.some(m => matchLocalDates.get(m.id) === d && m.status === 'live');
           const isCurrent = i === dateIndex;
           const isTodayDate = i === defaultIndex;
 
@@ -204,6 +303,7 @@ export default function Calendar() {
           <option value="1">1ª Rodada</option>
           <option value="2">2ª Rodada</option>
           <option value="3">3ª Rodada</option>
+          <option value="4">Mata-mata</option>
         </select>
         {(filterGroup || filterTeam || filterRound) && (
           <button
@@ -232,18 +332,21 @@ export default function Calendar() {
               {timeMatches.map(m => (
                 <MatchRow
                   key={m.id}
-                  group={m.group || ''}
+                  group={m.group || m.roundLabel}
                   homeTeam={m.homeTeam}
                   awayTeam={m.awayTeam}
+                  homeLabel={m.homeLabel}
+                  awayLabel={m.awayLabel}
                   homeScore={m.homeScore ?? null}
                   awayScore={m.awayScore ?? null}
                   status={m.status}
-                  liveMinute={liveMatches[m.id]}
+                  liveMinute={m.liveMinute}
                   time={m.time}
                   venue={m.venue}
                   city={m.city}
                   country={m.country}
                   timezone={timezone}
+                  isKnockout={m.round === 4}
                 />
               ))}
             </div>
@@ -261,13 +364,15 @@ export default function Calendar() {
 }
 
 function MatchRow({
-  group, homeTeam, awayTeam,
+  group, homeTeam, awayTeam, homeLabel, awayLabel,
   homeScore, awayScore, status, liveMinute, time, venue, city, country,
-  timezone,
+  timezone, isKnockout,
 }: {
   group: string;
-  homeTeam: string;
-  awayTeam: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  homeLabel?: string;
+  awayLabel?: string;
   homeScore: number | null;
   awayScore: number | null;
   status?: 'upcoming' | 'live' | 'finished';
@@ -277,9 +382,12 @@ function MatchRow({
   city: string;
   country: string;
   timezone: string;
+  isKnockout?: boolean;
 }) {
   const isLive = status === 'live';
   const isFinished = status === 'finished' || (homeScore !== null && awayScore !== null && !isLive);
+  const hName = homeLabel || (homeTeam ? getTeamName(homeTeam) : '');
+  const aName = awayLabel || (awayTeam ? getTeamName(awayTeam) : '');
 
   return (
     <div
@@ -289,25 +397,30 @@ function MatchRow({
           ? 'bg-red-950/30 border-red-500/50'
           : isFinished
             ? 'bg-card border-border/50'
-            : 'bg-card border-border'
+            : isKnockout
+              ? 'bg-fifa-gold/5 border-fifa-gold/20'
+              : 'bg-card border-border'
       )}
     >
-      {/* Group badge */}
-      <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-        <span className="text-xs font-bold text-primary">{group}</span>
+      {/* Group/Round badge */}
+      <div className={cn(
+        'shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold',
+        isKnockout ? 'bg-fifa-gold/15 text-fifa-gold' : 'bg-primary/10 text-primary'
+      )}>
+        <span className="truncate px-0.5">{group}</span>
       </div>
 
       {/* Teams and score */}
       <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:gap-2">
         {/* Home */}
         <div className="flex items-center gap-1.5 min-w-0">
-          <FlagIcon teamId={homeTeam} size={20} />
-          <span className="text-xs sm:text-sm font-medium truncate">{getTeamName(homeTeam)}</span>
+          {homeTeam && <FlagIcon teamId={homeTeam} size={20} />}
+          <span className="text-xs sm:text-sm font-medium truncate">{hName}</span>
         </div>
 
         {/* Score / Time / Live */}
         <div className="flex flex-col items-center shrink-0">
-          {isLive ? (
+          {isLive && liveMinute ? (
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
@@ -324,23 +437,25 @@ function MatchRow({
           ) : (
             <span className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {formatTime(time, timezone)}
+              {time ? formatTime(time, timezone) : '--:--'}
             </span>
           )}
         </div>
 
         {/* Away */}
         <div className="flex items-center gap-1.5 min-w-0 justify-end">
-          <span className="text-xs sm:text-sm font-medium truncate">{getTeamName(awayTeam)}</span>
-          <FlagIcon teamId={awayTeam} size={20} />
+          <span className="text-xs sm:text-sm font-medium truncate">{aName}</span>
+          {awayTeam && <FlagIcon teamId={awayTeam} size={20} />}
         </div>
       </div>
 
       {/* Venue */}
-      <div className="hidden md:flex flex-col items-end shrink-0 text-[10px] text-muted-foreground max-w-[140px]">
-        <span className="truncate">{venue}</span>
-        <span className="truncate">{city}, {country}</span>
-      </div>
+      {venue && (
+        <div className="hidden md:flex flex-col items-end shrink-0 text-[10px] text-muted-foreground max-w-[140px]">
+          <span className="truncate">{venue}</span>
+          {city && <span className="truncate">{city}{country ? `, ${country}` : ''}</span>}
+        </div>
+      )}
     </div>
   );
 }

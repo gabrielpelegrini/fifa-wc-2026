@@ -68,25 +68,20 @@ const ALL_GROUP_DATES = [
   '20260626', '20260627',
 ];
 
-/** Build a smart date list that avoids timeout by only fetching relevant dates */
+/** Build a smart date list: all group dates + dynamic knockout window */
 function buildFetchDates(): string[] {
   const dates = new Set<string>();
   const nowUtc = new Date();
 
-  // Dynamic window: -2 to +7 days (covers knockout matches around today)
-  for (let offset = -2; offset <= 7; offset++) {
-    const d = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + offset));
-    dates.add(d.toISOString().slice(0, 10).replace(/-/g, ''));
+  // Always include ALL group stage dates (needed for correct standings)
+  for (const gd of ALL_GROUP_DATES) {
+    dates.add(gd);
   }
 
-  // Group stage: only include dates that fall within the dynamic window
-  // During knockout phase, we don't need to re-fetch old group dates
-  for (const gd of ALL_GROUP_DATES) {
-    if (dates.has(gd)) continue; // already included
-    // Only add last 3 group dates (Jun 25-27) for any late results
-    if (gd >= '20260625') {
-      dates.add(gd);
-    }
+  // Dynamic window: -2 to +10 days (covers full knockout stage)
+  for (let offset = -2; offset <= 10; offset++) {
+    const d = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + offset));
+    dates.add(d.toISOString().slice(0, 10).replace(/-/g, ''));
   }
 
   return Array.from(dates).sort();
@@ -122,7 +117,7 @@ async function fetchESPNDate(dateStr: string, signal?: AbortSignal): Promise<ESP
 // Instead of 25 parallel fetches, batch in groups of 5 with sequential batches
 
 async function fetchAllDatesBatched(dates: string[], signal?: AbortSignal): Promise<ESPNEvent[]> {
-  const BATCH_SIZE = 5;
+  const BATCH_SIZE = 10; // Larger batches for speed
   const allEvents: ESPNEvent[] = [];
 
   for (let i = 0; i < dates.length; i += BATCH_SIZE) {
@@ -158,7 +153,7 @@ function classifyStatus(statusName: string): 'upcoming' | 'live' | 'finished' {
 
 export async function GET(request: Request) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout (smart date list keeps it fast)
+  const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout (all group + knockout dates)
 
   try {
     const { searchParams } = new URL(request.url);

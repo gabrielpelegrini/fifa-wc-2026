@@ -164,11 +164,11 @@ export default function LiveTab() {
 
         const status = evt.statusName === 'STATUS_FULL_TIME' ? 'finished'
           : (evt.statusName === 'STATUS_IN_PROGRESS' || evt.statusName === 'STATUS_HALFTIME' ||
-             evt.statusName === 'STATUS_1ST_PERIOD' || evt.statusName === 'STATUS_2ND_PERIOD')
+             evt.statusName === 'STATUS_1ST_PERIOD' || evt.statusName === 'STATUS_2ND_PERIOD' ||
+             evt.statusName === 'STATUS_EXTRA_TIME' || evt.statusName === 'STATUS_PENALTY_SHOOTOUT')
             ? 'live' as const
           : 'upcoming' as const;
         const hasScore = status === 'live' || status === 'finished';
-        const minute = status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined;
 
         list.push({
           id: `espn-${evt.homeAbbr}-${evt.awayAbbr}`,
@@ -185,14 +185,6 @@ export default function LiveTab() {
           awayScore: hasScore ? (parseInt(evt.awayScore, 10) || 0) : null,
           status,
         });
-
-        // Also add to liveMatches for the badge if live
-        if (status === 'live' && minute != null) {
-          useWorldCupStore.getState().setLiveMatches({
-            ...useWorldCupStore.getState().liveMatches,
-            [`espn-${evt.homeAbbr}-${evt.awayAbbr}`]: minute,
-          });
-        }
       }
     }
 

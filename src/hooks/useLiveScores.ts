@@ -49,8 +49,9 @@ export function useLiveScores() {
 
   const bulkUpdateFromESPN = useWorldCupStore(s => s.bulkUpdateFromESPN);
   const updateKnockoutLive = useWorldCupStore(s => s.updateKnockoutLive);
-  const lastPollTime = useWorldCupStore(s => s.lastPollTime);
   const setLastPollTime = useWorldCupStore(s => s.setLastPollTime);
+  const setLiveMatches = useWorldCupStore(s => s.setLiveMatches);
+  const lastPollTime = useWorldCupStore(s => s.lastPollTime);
   const isRefreshing = useWorldCupStore(s => s.isRefreshing);
 
   const poll = useCallback(async () => {
@@ -67,12 +68,30 @@ export function useLiveScores() {
 
       if (!mountedRef.current) return;
 
+      if (data.source && data.source !== 'espn') {
+        // API returned an error (timeout, etc.) — don't update state
+        return;
+      }
+
       if (data.scores && Object.keys(data.scores).length > 0) {
         bulkUpdateFromESPN(data.scores);
       }
 
       if (data.knockoutEvents && data.knockoutEvents.length > 0) {
         updateKnockoutLive(data.knockoutEvents);
+      }
+
+      // Clean liveMatches: remove entries for matches no longer live
+      const currentLive = useWorldCupStore.getState().liveMatches;
+      const newLive: Record<string, number> = {};
+      for (const [matchId, minute] of Object.entries(currentLive)) {
+        const score = data.scores?.[matchId];
+        if (score && score.status === 'live') {
+          newLive[matchId] = minute as number;
+        }
+      }
+      if (Object.keys(newLive).length !== Object.keys(currentLive).length) {
+        setLiveMatches(newLive);
       }
 
       setLastPollTime(new Date().toISOString());

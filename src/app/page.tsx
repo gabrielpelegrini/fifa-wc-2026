@@ -5,6 +5,7 @@ import LiveTab from '@/components/worldcup/LiveTab';
 import Calendar from '@/components/worldcup/Calendar';
 import GroupTables from '@/components/worldcup/GroupTables';
 import KnockoutBracket from '@/components/worldcup/KnockoutBracket';
+import VisualBracket from '@/components/worldcup/VisualBracket';
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { useLiveScores } from '@/hooks/useLiveScores';
 
@@ -22,6 +23,7 @@ export default function Home() {
         {activeTab === 'calendar' && <Calendar />}
         {activeTab === 'groups' && <GroupTables />}
         {activeTab === 'bracket' && <KnockoutBracket />}
+        {activeTab === 'visual' && <VisualBracket />}
       </main>
       <footer className="border-t border-fifa-green/10 py-3 text-center text-xs text-muted-foreground">
         <p className="flex items-center justify-center gap-1.5">
