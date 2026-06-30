@@ -399,3 +399,73 @@
 
 **Total Geral**: 23 tarefas concluidas (11 Fase 1 + 12 Fase 2)
 **Score estimado**: 5.7/10 → ~8.5/10
+
+---
+
+# FASE 3: Bugs Criticos Reportados pelo Usuario (pos-deploy)
+
+> Usuario testou o deploy e reportou 5 bugs criticos apos jogar ao vivo.
+> Data: 01/07/2026
+
+---
+
+## Task ID: 24 (CRITICO — Group J nunca completava)
+**Agent**: Main
+**Task**: Adicionar 28/06 ao ALL_GROUP_DATES e todas as datas do mata-mata
+**Arquivo modificado**: `src/app/api/live-scores/route.ts`
+**Mudancas**:
+- `ALL_GROUP_DATES`: adicionado `20260628` (Grupo J rodada 3: ARG vs JOR, ALG vs AUT)
+- Novo array `KNOCKOUT_DATES`: 18 datas (20260628-20260719) cobrindo R32 ate Final
+- `buildFetchDates()`: agora inclui group + knockout + dynamic window = 36 datas unicas (4 batches)
+- Comentario: "NOTE: Group J Matchday 3 is on June 28 — MUST be included!"
+**Resultado**: Todas as 72 group scores + 32 knockout events agora buscados corretamente
+**Status**: ✅ CONCLUIDO
+
+---
+
+## Task ID: 25 (ALTO — Calendar nao mostrava mata-mata)
+**Agent**: Main
+**Task**: Corrigir Calendar para exibir knockout matches mesmo sem time
+**Arquivo modificado**: `src/components/worldcup/Calendar.tsx`
+**Mudancas**:
+- `matchLocalDates`: removido `!m.time` check, agora so verifica `!m.date`
+- Para matches sem time, usa fallback `'12:00'` para calcular data local
+- Raw ESPN events: `evt.time || '12:00'` garante que matches com data mas sem hora aparecem
+**Status**: ✅ CONCLUIDO
+
+---
+
+## Task ID: 26 (MEDIO — Bracket matching falhava para 3rd place pools)
+**Agent**: Main
+**Task**: Re-computar bracket no updateKnockoutLive antes do matching
+**Arquivo modificado**: `src/store/worldCupStore.ts`
+**Mudancas**:
+- `updateKnockoutLive`: agora chama `resolveBracket()` internamente para obter `freshBracket`
+- Matching usa `freshBracket` (com 3rd place pools resolvidos) em vez do bracket do store
+- Remove dependencia de `bracket` e `matches` do destructuring
+- `set()` atomico agora inclui `bracket: freshBracket`
+**Status**: ✅ CONCLUIDO
+
+---
+
+## Task ID: 27 (VALIDACAO)
+**Agent**: Main
+**Task**: Build + TypeScript + API test
+**Resultados**:
+- `npx tsc --noEmit`: ✅ Zero erros TypeScript
+- `npm run build`: ✅ Compiled successfully (2.6s)
+- API test: 72/72 group scores, 32 KO events, Group J completo, June 28 OK
+- Knockout verify: Germany vs Paraguay (penaltis) detectado corretamente
+**Status**: ✅ CONCLUIDO
+
+---
+
+## Resumo Fase 3
+| # | Tarefa | Severidade | Status |
+|---|--------|-----------|--------|
+| 24 | ALL_GROUP_DATES + KNOCKOUT_DATES | CRITICO | ✅ |
+| 25 | Calendar knockout fallback | ALTO | ✅ |
+| 26 | Bracket re-compute no matching | MEDIO | ✅ |
+| 27 | Build + TypeScript + API test | VALIDACAO | ✅ |
+
+**Total Geral**: 27 tarefas concluidas (11 Fase 1 + 12 Fase 2 + 4 Fase 3)
