@@ -2,15 +2,14 @@
 
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { cn } from '@/lib/utils';
-import { Calendar, Trophy, GitBranch, ArrowLeftRight, Moon, Sun, Radio, RefreshCw } from 'lucide-react';
+import { Calendar, Trophy, GitBranch, Moon, Sun, Radio, RefreshCw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 const TABS = [
   { id: 'live', label: 'Ao Vivo', icon: Radio },
-  { id: 'calendar', label: 'Calendário', icon: Calendar },
+  { id: 'calendar', label: 'Calendario', icon: Calendar },
   { id: 'groups', label: 'Grupos', icon: Trophy },
   { id: 'bracket', label: 'Mata-mata', icon: GitBranch },
-  { id: 'crossover', label: 'Cruzamentos', icon: ArrowLeftRight },
 ];
 
 export default function Navigation() {

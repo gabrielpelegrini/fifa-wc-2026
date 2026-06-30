@@ -153,7 +153,7 @@ export default function Calendar() {
               onClick={() => setDateIndex(i)}
               title={formatDate(d, timezone)}
               className={cn(
-                'w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center transition-all',
+                'w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center transition-all',
                 isCurrent
                   ? 'bg-primary text-primary-foreground scale-125 ring-2 ring-primary/30'
                   : isTodayDate

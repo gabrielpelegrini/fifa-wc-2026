@@ -31,29 +31,11 @@ interface MatchScore {
   status: 'upcoming' | 'live' | 'finished';
   minute?: number;
   displayClock?: string;
-  // Optional date/time corrections from ESPN
   espnDate?: string;
   espnTime?: string;
   espnVenue?: string;
   espnCity?: string;
 }
-
-// ── In-memory cache ────────────────────────────────────────────────────
-
-let cachedScores: Record<string, MatchScore> | null = null;
-let cacheTimestamp = 0;
-const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
-
-// ── Group stage date range ─────────────────────────────────────────────
-
-const GROUP_STAGE_DATES = [
-  '20260611', '20260612', '20260613', '20260614', '20260615',
-  '20260616', '20260617', '20260618', '20260619', '20260620',
-  '20260621', '20260622', '20260623', '20260624', '20260625',
-  '20260626', '20260627',
-];
-
-// ── Raw knockout event (non-group, for client-side bracket matching) ──
 
 interface RawKnockoutEvent {
   homeAbbr: string;
@@ -63,7 +45,22 @@ interface RawKnockoutEvent {
   statusName: string;
   clock?: number;
   displayClock?: string;
+  shortDetail?: string; // e.g. "Argentina wins in PK 4-2"
 }
+
+// ── NO in-memory cache ──────────────────────────────────────────────
+// Removed: in-memory cache is useless on Vercel serverless (instances don't share state).
+// Each request fetches fresh data. Client-side polling (5min) handles dedup.
+// For manual refresh, the _refresh param is kept but now just bypasses any CDN.
+
+// ── Group stage date range ─────────────────────────────────────────────
+
+const GROUP_STAGE_DATES = [
+  '20260611', '20260612', '20260613', '20260614', '20260615',
+  '20260616', '20260617', '20260618', '20260619', '20260620',
+  '20260621', '20260622', '20260623', '20260624', '20260625',
+  '20260626', '20260627',
+];
 
 // ── Build match lookup ─────────────────────────────────────────────────
 
@@ -79,16 +76,37 @@ function getMatchLookup(): Map<string, string> {
 
 // ── Fetch ESPN scoreboard for a single date ────────────────────────────
 
-async function fetchESPNDate(dateStr: string): Promise<ESPNEvent[]> {
+async function fetchESPNDate(dateStr: string, signal?: AbortSignal): Promise<ESPNEvent[]> {
   try {
     const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`;
-    const res = await fetch(url, { next: { revalidate: 0 } });
+    const res = await fetch(url, { signal, next: { revalidate: 0 } });
     if (!res.ok) return [];
     const data = await res.json();
     return data.events ?? [];
   } catch {
     return [];
   }
+}
+
+// ── Fetch dates in batches to avoid timeout ────────────────────────────
+// Instead of 25 parallel fetches, batch in groups of 5 with sequential batches
+
+async function fetchAllDatesBatched(dates: string[], signal?: AbortSignal): Promise<ESPNEvent[]> {
+  const BATCH_SIZE = 5;
+  const allEvents: ESPNEvent[] = [];
+
+  for (let i = 0; i < dates.length; i += BATCH_SIZE) {
+    if (signal?.aborted) break;
+    const batch = dates.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(d => fetchESPNDate(d, signal))
+    );
+    for (const events of results) {
+      allEvents.push(...events);
+    }
+  }
+
+  return allEvents;
 }
 
 // ── Classify ESPN status ───────────────────────────────────────────────
@@ -103,26 +121,17 @@ function classifyStatus(statusName: string): 'upcoming' | 'live' | 'finished' {
     statusName === 'STATUS_EXTRA_TIME' ||
     statusName === 'STATUS_PENALTY_SHOOTOUT'
   ) return 'live';
-  return 'upcoming'; // STATUS_SCHEDULED, etc.
+  return 'upcoming';
 }
 
 // ── Main GET handler ───────────────────────────────────────────────────
 
 export async function GET(request: Request) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout (Vercel Hobby = 10s limit)
+
   try {
     const { searchParams } = new URL(request.url);
-    const isManualRefresh = searchParams.has('_refresh');
-    const now = Date.now();
-
-    // Return cached data if still fresh (unless manual refresh)
-    if (!isManualRefresh && cachedScores && now - cacheTimestamp < CACHE_TTL_MS) {
-      return NextResponse.json({
-        serverTime: new Date().toISOString(),
-        scores: cachedScores,
-        source: 'cache',
-        pollIntervalMs: 5 * 60 * 1000,
-      });
-    }
 
     // Build full date list: group stage + dynamic window around today for knockout
     const fetchDates = new Set(GROUP_STAGE_DATES);
@@ -133,112 +142,102 @@ export async function GET(request: Request) {
     }
     const ALL_DATES = Array.from(fetchDates).sort();
 
-    // Fetch all dates in parallel
-    const allEvents = await Promise.all(
-      ALL_DATES.map(d => fetchESPNDate(d))
-    );
+    // Fetch in batches of 5 to avoid timeout
+    const allEvents = await fetchAllDatesBatched(ALL_DATES, controller.signal);
 
     const lookup = getMatchLookup();
     const scores: Record<string, MatchScore> = {};
     const rawKnockout: RawKnockoutEvent[] = [];
 
-    for (const events of allEvents) {
-      for (const event of events) {
-        const comp = event.competitions[0];
-        if (!comp) continue;
+    for (const event of allEvents) {
+      const comp = event.competitions[0];
+      if (!comp) continue;
 
-        // Extract group
-        const group = comp.altGameNote ? extractGroup(comp.altGameNote) : null;
-        if (!group) {
-          // Non-group event — collect as potential knockout match
-          const hc = comp.competitors.find(c => c.homeAway === 'home');
-          const ac = comp.competitors.find(c => c.homeAway === 'away');
-          if (hc && ac) {
-            rawKnockout.push({
-              homeAbbr: hc.team.abbreviation,
-              awayAbbr: ac.team.abbreviation,
-              homeScore: hc.score,
-              awayScore: ac.score,
-              statusName: comp.status.type.name,
-              clock: comp.status.clock,
-              displayClock: comp.status.displayClock,
-            });
-          }
-          continue;
+      // Extract group
+      const group = comp.altGameNote ? extractGroup(comp.altGameNote) : null;
+      if (!group) {
+        // Non-group event — collect as potential knockout match
+        const hc = comp.competitors.find(c => c.homeAway === 'home');
+        const ac = comp.competitors.find(c => c.homeAway === 'away');
+        if (hc && ac) {
+          rawKnockout.push({
+            homeAbbr: hc.team.abbreviation,
+            awayAbbr: ac.team.abbreviation,
+            homeScore: hc.score,
+            awayScore: ac.score,
+            statusName: comp.status.type.name,
+            clock: comp.status.clock,
+            displayClock: comp.status.displayClock,
+            shortDetail: comp.status.type.shortDetail,
+          });
         }
-
-        // Get team IDs from ESPN abbreviations
-        const homeComp = comp.competitors.find(c => c.homeAway === 'home');
-        const awayComp = comp.competitors.find(c => c.homeAway === 'away');
-        if (!homeComp || !awayComp) continue;
-
-        const homeTeamId = ESPN_TO_TEAM[homeComp.team.abbreviation];
-        const awayTeamId = ESPN_TO_TEAM[awayComp.team.abbreviation];
-        if (!homeTeamId || !awayTeamId) continue;
-
-        // Look up our match ID (order-independent)
-        const pair = [homeTeamId, awayTeamId].sort().join(':');
-        const matchId = lookup.get(`${group}:${pair}`);
-        if (!matchId) continue;
-
-        // Classify status
-        const statusType = classifyStatus(comp.status.type.name);
-        const isFinished = statusType === 'finished';
-        const isLive = statusType === 'live';
-
-        // Parse ESPN scores
-        const espnHomeScore = isFinished || isLive
-          ? parseInt(homeComp.score, 10) || 0
-          : null;
-        const espnAwayScore = isFinished || isLive
-          ? parseInt(awayComp.score, 10) || 0
-          : null;
-
-        // CRITICAL: ESPN home/away may differ from our match's home/away.
-        // Align scores to OUR match definition.
-        const ourMatch = GROUP_MATCHES.find(m => m.id === matchId);
-        let homeScore: number | null = null;
-        let awayScore: number | null = null;
-
-        if (ourMatch && (isFinished || isLive)) {
-          if (homeTeamId === ourMatch.homeTeam) {
-            // ESPN home = our home → same order
-            homeScore = espnHomeScore;
-            awayScore = espnAwayScore;
-          } else {
-            // ESPN home = our away → swap
-            homeScore = espnAwayScore;
-            awayScore = espnHomeScore;
-          }
-        }
-
-        // Minute info for live matches
-        const minute = isLive && comp.status.clock
-          ? Math.floor(comp.status.clock / 60)
-          : undefined;
-
-        // Parse ESPN date/time for schedule correction
-        const espnDate = event.date ? event.date.slice(0, 10) : undefined;
-        const espnTime = event.date ? event.date.slice(11, 16) : undefined;
-
-        scores[matchId] = {
-          matchId,
-          homeScore,
-          awayScore,
-          status: statusType,
-          minute,
-          displayClock: comp.status.displayClock,
-          espnDate,
-          espnTime,
-          espnVenue: comp.venue?.fullName,
-          espnCity: comp.venue?.address?.city,
-        };
+        continue;
       }
-    }
 
-    // Update cache
-    cachedScores = scores;
-    cacheTimestamp = now;
+      // Get team IDs from ESPN abbreviations
+      const homeComp = comp.competitors.find(c => c.homeAway === 'home');
+      const awayComp = comp.competitors.find(c => c.homeAway === 'away');
+      if (!homeComp || !awayComp) continue;
+
+      const homeTeamId = ESPN_TO_TEAM[homeComp.team.abbreviation];
+      const awayTeamId = ESPN_TO_TEAM[awayComp.team.abbreviation];
+      if (!homeTeamId || !awayTeamId) continue;
+
+      // Look up our match ID (order-independent)
+      const pair = [homeTeamId, awayTeamId].sort().join(':');
+      const matchId = lookup.get(`${group}:${pair}`);
+      if (!matchId) continue;
+
+      // Classify status
+      const statusType = classifyStatus(comp.status.type.name);
+      const isFinished = statusType === 'finished';
+      const isLive = statusType === 'live';
+
+      // Parse ESPN scores
+      const espnHomeScore = isFinished || isLive
+        ? parseInt(homeComp.score, 10) || 0
+        : null;
+      const espnAwayScore = isFinished || isLive
+        ? parseInt(awayComp.score, 10) || 0
+        : null;
+
+      // CRITICAL: ESPN home/away may differ from our match's home/away.
+      const ourMatch = GROUP_MATCHES.find(m => m.id === matchId);
+      let homeScore: number | null = null;
+      let awayScore: number | null = null;
+
+      if (ourMatch && (isFinished || isLive)) {
+        if (homeTeamId === ourMatch.homeTeam) {
+          homeScore = espnHomeScore;
+          awayScore = espnAwayScore;
+        } else {
+          homeScore = espnAwayScore;
+          awayScore = espnHomeScore;
+        }
+      }
+
+      // Minute info for live matches
+      const minute = isLive && comp.status.clock
+        ? Math.floor(comp.status.clock / 60)
+        : undefined;
+
+      // Parse ESPN date/time
+      const espnDate = event.date ? event.date.slice(0, 10) : undefined;
+      const espnTime = event.date ? event.date.slice(11, 16) : undefined;
+
+      scores[matchId] = {
+        matchId,
+        homeScore,
+        awayScore,
+        status: statusType,
+        minute,
+        displayClock: comp.status.displayClock,
+        espnDate,
+        espnTime,
+        espnVenue: comp.venue?.fullName,
+        espnCity: comp.venue?.address?.city,
+      };
+    }
 
     const finishedCount = Object.values(scores).filter(s => s.status === 'finished').length;
     const liveCount = Object.values(scores).filter(s => s.status === 'live').length;
@@ -248,17 +247,20 @@ export async function GET(request: Request) {
       scores,
       knockoutEvents: rawKnockout,
       source: 'espn',
-      _debug: { total: Object.keys(scores).length, finished: finishedCount, live: liveCount, knockout: rawKnockout.length },
+      _debug: { total: Object.keys(scores).length, finished: finishedCount, live: liveCount, knockout: rawKnockout.length, dates: ALL_DATES.length },
       pollIntervalMs: 5 * 60 * 1000,
     });
   } catch (error) {
-    // If ESPN fails, return cached data (even if stale) or empty
+    const isTimeout = error instanceof DOMException && error.name === 'AbortError';
     return NextResponse.json({
       serverTime: new Date().toISOString(),
-      scores: cachedScores ?? {},
-      source: cachedScores ? 'stale_cache' : 'error',
-      error: String(error),
+      scores: {},
+      knockoutEvents: [],
+      source: 'error',
+      error: isTimeout ? 'ESPN timeout — too many dates' : String(error),
       pollIntervalMs: 5 * 60 * 1000,
     });
+  } finally {
+    clearTimeout(timeout);
   }
 }

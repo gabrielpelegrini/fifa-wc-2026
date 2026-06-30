@@ -12,6 +12,27 @@ export interface ResolvedBracket {
 }
 
 /**
+ * Determine the winner of a knockout match.
+ * If scores are different, higher score wins.
+ * If scores are equal, use penalty shootout if available.
+ * Returns 'home' or 'away', or null if no decisive result.
+ */
+function getWinner(
+  result: { home: number; away: number; penaltyHome?: number; penaltyAway?: number } | undefined,
+  matchId: string
+): 'home' | 'away' | null {
+  if (!result) return null;
+  if (result.home > result.away) return 'home';
+  if (result.away > result.home) return 'away';
+  // Draw — check penalties
+  if (result.penaltyHome != null && result.penaltyAway != null) {
+    return result.penaltyHome > result.penaltyAway ? 'home' : 'away';
+  }
+  // Draw without penalties — not yet decided
+  return null;
+}
+
+/**
  * Check if a group has completed all 3 matchdays (6 matches played total)
  */
 function isGroupComplete(groupId: string, allStandings: Map<string, TeamStanding[]>): boolean {
@@ -74,7 +95,7 @@ function resolveSlotToTeamId(
 export function resolveBracket(
   allStandings: Map<string, TeamStanding[]>,
   thirds: ThirdPlaceEntry[],
-  knockoutResults: Map<string, { home: number; away: number }>
+  knockoutResults: Map<string, { home: number; away: number; penaltyHome?: number; penaltyAway?: number }>
 ): ResolvedBracket {
   // Pre-resolve all 8 third-place slots at once (prevents double-assignment)
   const thirdPlaceMap = allGroupsComplete(allStandings)
@@ -95,137 +116,91 @@ export function resolveBracket(
       awayTeam: away.teamId,
       homeScore: result?.home ?? null,
       awayScore: result?.away ?? null,
+      penaltyHome: result?.penaltyHome ?? null,
+      penaltyAway: result?.penaltyAway ?? null,
       date: cfg.date,
       time: cfg.time,
       venue: cfg.venue,
       city: cfg.city,
     };
   });
+
+  // Generic helper: resolve a round fed by winners from a previous round
+  function resolveFeederRound<T extends { id: string; feederHome: string; feederAway: string }>(
+    configs: readonly T[],
+    roundName: KnockoutMatch['round'],
+    prevRound: KnockoutMatch[],
+    results: Map<string, { home: number; away: number; penaltyHome?: number; penaltyAway?: number }>
+  ): KnockoutMatch[] {
+    return configs.map(cfg => {
+      const result = results.get(cfg.id);
+      const homeWinner = getWinner(results.get(cfg.feederHome), cfg.feederHome);
+      const awayWinner = getWinner(results.get(cfg.feederAway), cfg.feederAway);
+      let homeTeam: string | null = null;
+      let awayTeam: string | null = null;
+      if (homeWinner) {
+        const homeFeeder = prevRound.find(m => m.id === cfg.feederHome);
+        homeTeam = homeWinner === 'home'
+          ? homeFeeder?.homeTeam ?? null
+          : homeFeeder?.awayTeam ?? null;
+      }
+      if (awayWinner) {
+        const awayFeeder = prevRound.find(m => m.id === cfg.feederAway);
+        awayTeam = awayWinner === 'home'
+          ? awayFeeder?.homeTeam ?? null
+          : awayFeeder?.awayTeam ?? null;
+      }
+      return {
+        id: cfg.id,
+        round: roundName,
+        homeSlot: `V(${cfg.feederHome})`,
+        awaySlot: `V(${cfg.feederAway})`,
+        homeTeam,
+        awayTeam,
+        homeScore: result?.home ?? null,
+        awayScore: result?.away ?? null,
+        penaltyHome: result?.penaltyHome ?? null,
+        penaltyAway: result?.penaltyAway ?? null,
+        date: (cfg as unknown as { date: string }).date,
+        time: (cfg as unknown as { time: string }).time,
+        venue: (cfg as unknown as { venue: string }).venue,
+        city: (cfg as unknown as { city: string }).city,
+      };
+    });
+  }
 
   // Resolve R16 - fed by R32 winners
-  const r16: KnockoutMatch[] = BRACKET_CONFIG.r16.map(cfg => {
-    const result = knockoutResults.get(cfg.id);
-    // Only populate teams if the feeder R32 matches have been played
-    const homeR32Result = knockoutResults.get(cfg.feederHome);
-    const awayR32Result = knockoutResults.get(cfg.feederAway);
-    let homeTeam: string | null = null;
-    let awayTeam: string | null = null;
-    if (homeR32Result && homeR32Result.home !== homeR32Result.away) {
-      const homeFeeder = r32.find(m => m.id === cfg.feederHome);
-      homeTeam = homeR32Result.home > homeR32Result.away
-        ? homeFeeder?.homeTeam ?? null
-        : homeFeeder?.awayTeam ?? null;
-    }
-    if (awayR32Result && awayR32Result.home !== awayR32Result.away) {
-      const awayFeeder = r32.find(m => m.id === cfg.feederAway);
-      awayTeam = awayR32Result.home > awayR32Result.away
-        ? awayFeeder?.homeTeam ?? null
-        : awayFeeder?.awayTeam ?? null;
-    }
-
-    return {
-      id: cfg.id,
-      round: 'r16',
-      homeSlot: `V(${cfg.feederHome})`,
-      awaySlot: `V(${cfg.feederAway})`,
-      homeTeam,
-      awayTeam,
-      homeScore: result?.home ?? null,
-      awayScore: result?.away ?? null,
-      date: cfg.date,
-      time: cfg.time,
-      venue: cfg.venue,
-      city: cfg.city,
-    };
-  });
+  const r16 = resolveFeederRound(BRACKET_CONFIG.r16, 'r16', r32, knockoutResults);
 
   // Resolve QF - fed by R16 winners
-  const qf: KnockoutMatch[] = BRACKET_CONFIG.qf.map(cfg => {
-    const result = knockoutResults.get(cfg.id);
-    const homeR16Result = knockoutResults.get(cfg.feederHome);
-    const awayR16Result = knockoutResults.get(cfg.feederAway);
-    let homeTeam: string | null = null;
-    let awayTeam: string | null = null;
-    if (homeR16Result && homeR16Result.home !== homeR16Result.away) {
-      const homeFeeder = r16.find(m => m.id === cfg.feederHome);
-      homeTeam = homeR16Result.home > homeR16Result.away
-        ? homeFeeder?.homeTeam ?? null
-        : homeFeeder?.awayTeam ?? null;
-    }
-    if (awayR16Result && awayR16Result.home !== awayR16Result.away) {
-      const awayFeeder = r16.find(m => m.id === cfg.feederAway);
-      awayTeam = awayR16Result.home > awayR16Result.away
-        ? awayFeeder?.homeTeam ?? null
-        : awayFeeder?.awayTeam ?? null;
-    }
-
-    return {
-      id: cfg.id,
-      round: 'qf',
-      homeSlot: `V(${cfg.feederHome})`,
-      awaySlot: `V(${cfg.feederAway})`,
-      homeTeam,
-      awayTeam,
-      homeScore: result?.home ?? null,
-      awayScore: result?.away ?? null,
-      date: cfg.date,
-      time: cfg.time,
-      venue: cfg.venue,
-      city: cfg.city,
-    };
-  });
+  const qf = resolveFeederRound(BRACKET_CONFIG.qf, 'qf', r16, knockoutResults);
 
   // Resolve SF - fed by QF winners
-  const sf: KnockoutMatch[] = BRACKET_CONFIG.sf.map(cfg => {
-    const result = knockoutResults.get(cfg.id);
-    const homeQFResult = knockoutResults.get(cfg.feederHome);
-    const awayQFResult = knockoutResults.get(cfg.feederAway);
-    let homeTeam: string | null = null;
-    let awayTeam: string | null = null;
-    if (homeQFResult && homeQFResult.home !== homeQFResult.away) {
-      const homeFeeder = qf.find(m => m.id === cfg.feederHome);
-      homeTeam = homeQFResult.home > homeQFResult.away
-        ? homeFeeder?.homeTeam ?? null
-        : homeFeeder?.awayTeam ?? null;
-    }
-    if (awayQFResult && awayQFResult.home !== awayQFResult.away) {
-      const awayFeeder = qf.find(m => m.id === cfg.feederAway);
-      awayTeam = awayQFResult.home > awayQFResult.away
-        ? awayFeeder?.homeTeam ?? null
-        : awayFeeder?.awayTeam ?? null;
-    }
+  const sf = resolveFeederRound(BRACKET_CONFIG.sf, 'sf', qf, knockoutResults);
 
-    return {
-      id: cfg.id,
-      round: 'sf',
-      homeSlot: `V(${cfg.feederHome})`,
-      awaySlot: `V(${cfg.feederAway})`,
-      homeTeam,
-      awayTeam,
-      homeScore: result?.home ?? null,
-      awayScore: result?.away ?? null,
-      date: cfg.date,
-      time: cfg.time,
-      venue: cfg.venue,
-      city: cfg.city,
-    };
-  });
+  // Helper: get team from a feeder match by side ('home' or 'away')
+  function getTeamFromMatch(
+    matchId: string, side: 'home' | 'away', round: KnockoutMatch[]
+  ): string | null {
+    const m = round.find(m => m.id === matchId);
+    return m ? (side === 'home' ? m.homeTeam : m.awayTeam) : null;
+  }
 
-  // Third place - only populate when both SF matches have decisive results
+  // Third place - losers of SF (not winners)
+  // FIX: use BRACKET_CONFIG IDs instead of sf[0]/sf[1] array indexing
   const sf01Result = knockoutResults.get('SF-01');
   const sf02Result = knockoutResults.get('SF-02');
   const thirdPlaceResult = knockoutResults.get('3RD');
   let thirdHomeTeam: string | null = null;
   let thirdAwayTeam: string | null = null;
-  if (sf01Result && sf01Result.home !== sf01Result.away) {
-    thirdHomeTeam = sf01Result.home < sf01Result.away
-      ? sf[0]?.homeTeam ?? null
-      : sf[0]?.awayTeam ?? null;
+  // 3rd place: home = loser of SF-01, away = loser of SF-02
+  if (sf01Result && getWinner(sf01Result, 'SF-01')) {
+    const loser = getWinner(sf01Result, 'SF-01') === 'home' ? 'away' : 'home';
+    thirdHomeTeam = getTeamFromMatch('SF-01', loser, sf);
   }
-  if (sf02Result && sf02Result.home !== sf02Result.away) {
-    thirdAwayTeam = sf02Result.home < sf02Result.away
-      ? sf[1]?.homeTeam ?? null
-      : sf[1]?.awayTeam ?? null;
+  if (sf02Result && getWinner(sf02Result, 'SF-02')) {
+    const loser = getWinner(sf02Result, 'SF-02') === 'home' ? 'away' : 'home';
+    thirdAwayTeam = getTeamFromMatch('SF-02', loser, sf);
   }
   const thirdPlace: KnockoutMatch = {
     id: BRACKET_CONFIG.third_place.id,
@@ -236,25 +211,24 @@ export function resolveBracket(
     awayTeam: thirdAwayTeam,
     homeScore: thirdPlaceResult?.home ?? null,
     awayScore: thirdPlaceResult?.away ?? null,
+    penaltyHome: thirdPlaceResult?.penaltyHome ?? null,
+    penaltyAway: thirdPlaceResult?.penaltyAway ?? null,
     date: BRACKET_CONFIG.third_place.date,
     time: BRACKET_CONFIG.third_place.time,
     venue: BRACKET_CONFIG.third_place.venue,
     city: BRACKET_CONFIG.third_place.city,
   };
 
-  // Final - only populate when both SF matches have decisive results
+  // Final - winners of SF
+  // FIX: use BRACKET_CONFIG IDs instead of sf[0]/sf[1] array indexing
   const finalResult = knockoutResults.get('FINAL');
   let finalHomeTeam: string | null = null;
   let finalAwayTeam: string | null = null;
-  if (sf01Result && sf01Result.home !== sf01Result.away) {
-    finalHomeTeam = sf01Result.home > sf01Result.away
-      ? sf[0]?.homeTeam ?? null
-      : sf[0]?.awayTeam ?? null;
+  if (sf01Result && getWinner(sf01Result, 'SF-01')) {
+    finalHomeTeam = getTeamFromMatch('SF-01', getWinner(sf01Result, 'SF-01')!, sf);
   }
-  if (sf02Result && sf02Result.home !== sf02Result.away) {
-    finalAwayTeam = sf02Result.home > sf02Result.away
-      ? sf[1]?.homeTeam ?? null
-      : sf[1]?.awayTeam ?? null;
+  if (sf02Result && getWinner(sf02Result, 'SF-02')) {
+    finalAwayTeam = getTeamFromMatch('SF-02', getWinner(sf02Result, 'SF-02')!, sf);
   }
   const final: KnockoutMatch = {
     id: BRACKET_CONFIG.final.id,
@@ -265,6 +239,8 @@ export function resolveBracket(
     awayTeam: finalAwayTeam,
     homeScore: finalResult?.home ?? null,
     awayScore: finalResult?.away ?? null,
+    penaltyHome: finalResult?.penaltyHome ?? null,
+    penaltyAway: finalResult?.penaltyAway ?? null,
     date: BRACKET_CONFIG.final.date,
     time: BRACKET_CONFIG.final.time,
     venue: BRACKET_CONFIG.final.venue,

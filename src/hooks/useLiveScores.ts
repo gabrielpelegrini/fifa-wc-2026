@@ -31,13 +31,13 @@ const SLOW_POLL_MS = 5 * 60 * 1000;  // 5 minutes
 const FAST_POLL_MS = 30 * 1000;       // 30 seconds
 
 /**
- * Polls /api/live-scores.
+ * Polls /api/live-scores with a mutex lock to prevent overlapping requests.
  * Supports fast mode (30s) for live minute-by-minute updates.
  */
 export function useLiveScores() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
-  const firstPollDone = useRef(false);
+  const pollingLock = useRef(false); // Mutex: prevent overlapping polls
   const [fastMode, setFastMode] = useState(false);
 
   const bulkUpdateFromESPN = useWorldCupStore(s => s.bulkUpdateFromESPN);
@@ -47,6 +47,10 @@ export function useLiveScores() {
   const isRefreshing = useWorldCupStore(s => s.isRefreshing);
 
   const poll = useCallback(async () => {
+    // Mutex lock — skip if a poll is already in flight
+    if (pollingLock.current) return;
+    pollingLock.current = true;
+
     try {
       const url = `/api/live-scores`;
       const res = await fetch(url);
@@ -65,9 +69,10 @@ export function useLiveScores() {
       }
 
       setLastPollTime(new Date().toISOString());
-      firstPollDone.current = true;
     } catch {
       // Silently fail - polling will retry
+    } finally {
+      pollingLock.current = false;
     }
   }, [bulkUpdateFromESPN, updateKnockoutLive, setLastPollTime]);
 
@@ -87,7 +92,7 @@ export function useLiveScores() {
     };
   }, [poll, fastMode]);
 
-  // Initial poll
+  // Initial poll (uses same poll function — mutex prevents double)
   useEffect(() => {
     poll();
   }, [poll]);

@@ -77,7 +77,10 @@ export default function GroupTables() {
                             qualified && 'bg-fifa-green text-primary-foreground',
                             possibleThird && 'bg-fifa-gold/80 text-white',
                             !qualified && !possibleThird && 'bg-muted text-muted-foreground'
-                          )}>
+                          )}
+                          role="status"
+                          aria-label={qualified ? `${s.position}o lugar, classificado para mata-mata` : possibleThird ? `${s.position}o lugar, possivel classificacao como terceiro` : `${s.position}o lugar, eliminado`}
+                        >
                             {s.position}
                           </span>
                         </td>
@@ -86,7 +89,7 @@ export default function GroupTables() {
                             <FlagIcon teamId={s.teamId} size={20} />
                             <span className="font-medium">{getTeamName(s.teamId)}</span>
                             {qualified && (
-                              <span className="text-[9px] text-fifa-green dark:text-fifa-green hidden sm:inline">
+                              <span className="text-[10px] text-fifa-green dark:text-fifa-green hidden sm:inline">
                                 R32
                               </span>
                             )}

@@ -78,6 +78,10 @@ function applyTiebreakers(
     if (b.points !== a.points) return b.points - a.points;
     if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
     if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+    // Fair play (negative = fewer cards = better)
+    const aFP = (a as unknown as Record<string, unknown>).fairPlay as number | undefined ?? 0;
+    const bFP = (b as unknown as Record<string, unknown>).fairPlay as number | undefined ?? 0;
+    if (aFP !== bFP) return aFP - bFP;
     return 0;
   });
 
@@ -97,8 +101,27 @@ function applyTiebreakers(
       continue;
     }
 
-    // Apply head-to-head for tied teams
+    // FIFA tiebreaker rules for 2+ teams tied:
+    // 1. Head-to-head points among ALL tied teams (subset of matches where ALL competitors are tied)
+    // 2. Head-to-head goal diff in those matches
+    // 3. Head-to-head goals for in those matches
+    // 4. Full group goal diff
+    // 5. Full group goals for
+    // 6. Fair play points (not yet tracked — defaults to 0)
+    // 7. Drawing of lots
+
     const tiedIds = new Set(group.map(t => t.teamId));
+
+    // Find all H2H matches among tied teams only
+    const h2hMatches = matches.filter(m =>
+      m.group === groupId &&
+      m.homeScore != null &&
+      m.awayScore != null &&
+      tiedIds.has(m.homeTeam) &&
+      tiedIds.has(m.awayTeam)
+    );
+
+    // Build H2H stats among tied teams
     const h2hPoints: Map<string, number> = new Map();
     const h2hGD: Map<string, number> = new Map();
     const h2hGF: Map<string, number> = new Map();
@@ -109,11 +132,7 @@ function applyTiebreakers(
       h2hGF.set(tid, 0);
     }
 
-    for (const m of matches) {
-      if (m.group !== groupId) continue;
-      if (!tiedIds.has(m.homeTeam) || !tiedIds.has(m.awayTeam)) continue;
-      if (m.homeScore == null || m.awayScore == null) continue;
-
+    for (const m of h2hMatches) {
       const hs: number = m.homeScore!;
       const as: number = m.awayScore!;
 
@@ -125,6 +144,7 @@ function applyTiebreakers(
       h2hGF.set(m.awayTeam, (h2hGF.get(m.awayTeam) || 0) + as);
     }
 
+    // Sort by H2H criteria
     const h2hSorted = [...group].sort((a, b) => {
       const ap = h2hPoints.get(a.teamId) || 0;
       const bp = h2hPoints.get(b.teamId) || 0;
@@ -135,9 +155,18 @@ function applyTiebreakers(
       const agf = h2hGF.get(a.teamId) || 0;
       const bgf = h2hGF.get(b.teamId) || 0;
       if (agf !== bgf) return bgf - agf;
+      // If still tied after full H2H, fall back to overall group stats
+      if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
       return 0;
     });
 
+    // FIFA subset rule: if H2H doesn't fully break a 3+ team tie
+    // (e.g., A beats B, B beats C, C beats A → circular), we need to
+    // check if a subset of teams can be isolated.
+    // The standard H2H filter above already handles this by only
+    // considering matches where ALL teams involved are from the tied group.
+    // For true circular ties that remain, FIFA uses fair play / drawing of lots.
     result.push(...h2hSorted);
   }
 

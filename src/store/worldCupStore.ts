@@ -9,6 +9,8 @@ import { ESPN_TO_TEAM } from '@/lib/espnMapping';
 interface KnockoutResult {
   home: number;
   away: number;
+  penaltyHome?: number;  // penalty shootout score
+  penaltyAway?: number;
 }
 
 interface ESPNMatchScore {
@@ -40,6 +42,7 @@ export interface RawKnockoutEvent {
   statusName: string;
   clock?: number;
   displayClock?: string;
+  shortDetail?: string;
 }
 
 interface WorldCupState {
@@ -224,7 +227,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
 
       const newInfo: Record<string, KnockoutLiveEntry> = {};
       const newKnockoutLive: Record<string, number> = {};
-      const finishedKO: Array<{ id: string; home: number; away: number }> = [];
+      const finishedKO: Array<{ id: string; home: number; away: number; penaltyHome?: number; penaltyAway?: number }> = [];
 
       for (const evt of events) {
         const homeId = ESPN_TO_TEAM[evt.homeAbbr];
@@ -236,6 +239,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         let isReversed = false;
 
         // Method 1: Match by resolved team names (works when groups are complete)
+        // Works for ALL rounds (R32, R16, QF, SF, 3RD, FINAL)
         matchedEntry = allEntries.find(e =>
           (e.homeTeam === homeId && e.awayTeam === awayId) ||
           (e.homeTeam === awayId && e.awayTeam === homeId)
@@ -307,7 +311,20 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
 
         // Collect finished results for bracket auto-resolution
         if (status === 'finished' && homeScore !== null && awayScore !== null) {
-          finishedKO.push({ id: matchedEntry.id, home: homeScore, away: awayScore });
+          // Parse penalty info from shortDetail (e.g. "Team wins in PK 4-2")
+          let penaltyHome: number | undefined;
+          let penaltyAway: number | undefined;
+          if (evt.shortDetail) {
+            const pkMatch = evt.shortDetail.match(/PK\s+(\d+)\s*[-–]\s*(\d+)/i);
+            if (pkMatch) {
+              // shortDetail is from ESPN's perspective (home/away aligned to ESPN)
+              const pkH = parseInt(pkMatch[1], 10);
+              const pkA = parseInt(pkMatch[2], 10);
+              penaltyHome = isReversed ? pkA : pkH;
+              penaltyAway = isReversed ? pkH : pkA;
+            }
+          }
+          finishedKO.push({ id: matchedEntry.id, home: homeScore, away: awayScore, penaltyHome, penaltyAway });
         }
       }
 
@@ -321,7 +338,12 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       if (finishedKO.length > 0) {
         const newKR = new Map(get().knockoutResults);
         for (const r of finishedKO) {
-          newKR.set(r.id, { home: r.home, away: r.away });
+          newKR.set(r.id, {
+            home: r.home,
+            away: r.away,
+            ...(r.penaltyHome != null && { penaltyHome: r.penaltyHome }),
+            ...(r.penaltyAway != null && { penaltyAway: r.penaltyAway }),
+          });
         }
         const computed = computeAll(get().matches, newKR);
         Object.assign(update, { knockoutResults: newKR, ...computed });

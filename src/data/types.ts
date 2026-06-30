@@ -71,6 +71,8 @@ export interface KnockoutMatch {
   awayTeam: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  penaltyHome?: number | null;  // penalty score (if applicable)
+  penaltyAway?: number | null;
   date: string;
   time: string; // HH:MM in UTC
   venue: string;
