@@ -40,12 +40,18 @@ interface MatchScore {
 interface RawKnockoutEvent {
   homeAbbr: string;
   awayAbbr: string;
+  homeName: string;
+  awayName: string;
   homeScore: string;
   awayScore: string;
   statusName: string;
   clock?: number;
   displayClock?: string;
   shortDetail?: string; // e.g. "Argentina wins in PK 4-2"
+  date?: string;        // ISO date from ESPN
+  time?: string;        // HH:MM UTC
+  venue?: string;
+  city?: string;
 }
 
 // ── NO in-memory cache ──────────────────────────────────────────────
@@ -54,13 +60,37 @@ interface RawKnockoutEvent {
 // For manual refresh, the _refresh param is kept but now just bypasses any CDN.
 
 // ── Group stage date range ─────────────────────────────────────────────
-
-const GROUP_STAGE_DATES = [
+// Full list for reference — we only fetch a subset to stay within timeout
+const ALL_GROUP_DATES = [
   '20260611', '20260612', '20260613', '20260614', '20260615',
   '20260616', '20260617', '20260618', '20260619', '20260620',
   '20260621', '20260622', '20260623', '20260624', '20260625',
   '20260626', '20260627',
 ];
+
+/** Build a smart date list that avoids timeout by only fetching relevant dates */
+function buildFetchDates(): string[] {
+  const dates = new Set<string>();
+  const nowUtc = new Date();
+
+  // Dynamic window: -2 to +7 days (covers knockout matches around today)
+  for (let offset = -2; offset <= 7; offset++) {
+    const d = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + offset));
+    dates.add(d.toISOString().slice(0, 10).replace(/-/g, ''));
+  }
+
+  // Group stage: only include dates that fall within the dynamic window
+  // During knockout phase, we don't need to re-fetch old group dates
+  for (const gd of ALL_GROUP_DATES) {
+    if (dates.has(gd)) continue; // already included
+    // Only add last 3 group dates (Jun 25-27) for any late results
+    if (gd >= '20260625') {
+      dates.add(gd);
+    }
+  }
+
+  return Array.from(dates).sort();
+}
 
 // ── Build match lookup ─────────────────────────────────────────────────
 
@@ -128,19 +158,13 @@ function classifyStatus(statusName: string): 'upcoming' | 'live' | 'finished' {
 
 export async function GET(request: Request) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout (Vercel Hobby = 10s limit)
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout (smart date list keeps it fast)
 
   try {
     const { searchParams } = new URL(request.url);
 
-    // Build full date list: group stage + dynamic window around today for knockout
-    const fetchDates = new Set(GROUP_STAGE_DATES);
-    const nowUtc = new Date();
-    for (let offset = -2; offset <= 7; offset++) {
-      const d = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + offset));
-      fetchDates.add(d.toISOString().slice(0, 10).replace(/-/g, ''));
-    }
-    const ALL_DATES = Array.from(fetchDates).sort();
+    // Smart date list: dynamic window + last 3 group dates (avoids 27-date timeout)
+    const ALL_DATES = buildFetchDates();
 
     // Fetch in batches of 5 to avoid timeout
     const allEvents = await fetchAllDatesBatched(ALL_DATES, controller.signal);
@@ -163,12 +187,18 @@ export async function GET(request: Request) {
           rawKnockout.push({
             homeAbbr: hc.team.abbreviation,
             awayAbbr: ac.team.abbreviation,
+            homeName: hc.team.displayName,
+            awayName: ac.team.displayName,
             homeScore: hc.score,
             awayScore: ac.score,
             statusName: comp.status.type.name,
             clock: comp.status.clock,
             displayClock: comp.status.displayClock,
             shortDetail: comp.status.type.shortDetail,
+            date: event.date ? event.date.slice(0, 10) : undefined,
+            time: event.date ? event.date.slice(11, 16) : undefined,
+            venue: comp.venue?.fullName,
+            city: comp.venue?.address?.city,
           });
         }
         continue;

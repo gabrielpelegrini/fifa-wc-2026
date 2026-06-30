@@ -18,11 +18,18 @@ interface LiveScoresResponse {
   knockoutEvents?: Array<{
     homeAbbr: string;
     awayAbbr: string;
+    homeName: string;
+    awayName: string;
     homeScore: string;
     awayScore: string;
     statusName: string;
     clock?: number;
     displayClock?: string;
+    shortDetail?: string;
+    date?: string;
+    time?: string;
+    venue?: string;
+    city?: string;
   }>;
   source: string;
 }

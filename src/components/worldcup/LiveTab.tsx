@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Clock, MapPin, Zap, RefreshCw, Loader2, Share2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useShareResult } from './Engagement';
+import { ESPN_TO_TEAM } from '@/lib/espnMapping';
 
 // ── Round labels in Portuguese ──────────────────────────────────────
 const ROUND_LABELS: Record<string, string> = {
@@ -80,7 +81,7 @@ function AnimatedScore({ score }: { score: number }) {
 }
 
 export default function LiveTab() {
-  const { matches, bracket, timezone, liveMatches, knockoutLiveInfo, refreshNow } = useWorldCupStore();
+  const { matches, bracket, timezone, liveMatches, knockoutLiveInfo, rawKnockoutEvents, refreshNow } = useWorldCupStore();
   const { poll, lastPollTime, fastMode, toggleFastMode, isRefreshing } = useLiveScores();
   const [initialLoading, setInitialLoading] = useState(true);
   const share = useShareResult();
@@ -125,6 +126,9 @@ export default function LiveTab() {
         bracket.final,
       ] as const;
 
+      // Track which raw events were matched to bracket entries
+      const matchedAbbrPairs = new Set<string>();
+
       for (const m of allKnockout) {
         const koInfo = knockoutLiveInfo[m.id];
         const hasResult = m.homeScore !== null && m.awayScore !== null;
@@ -143,11 +147,57 @@ export default function LiveTab() {
           awayScore: koInfo?.awayScore ?? m.awayScore,
           status: koInfo?.status ?? (hasResult ? 'finished' : 'upcoming'),
         });
+
+        // Track matched pairs to avoid duplicates from raw fallback
+        if (m.homeTeam && m.awayTeam) {
+          matchedAbbrPairs.add([m.homeTeam, m.awayTeam].sort().join(':'));
+        }
+      }
+
+      // 3) Fallback: show raw ESPN knockout events that weren't matched to bracket
+      // This ensures live/upcoming knockout matches always appear even if bracket resolution fails
+      for (const evt of rawKnockoutEvents) {
+        const homeId = ESPN_TO_TEAM[evt.homeAbbr];
+        const awayId = ESPN_TO_TEAM[evt.awayAbbr];
+        const pairKey = (homeId && awayId) ? [homeId, awayId].sort().join(':') : null;
+        if (pairKey && matchedAbbrPairs.has(pairKey)) continue; // Already shown via bracket
+
+        const status = evt.statusName === 'STATUS_FULL_TIME' ? 'finished'
+          : (evt.statusName === 'STATUS_IN_PROGRESS' || evt.statusName === 'STATUS_HALFTIME' ||
+             evt.statusName === 'STATUS_1ST_PERIOD' || evt.statusName === 'STATUS_2ND_PERIOD')
+            ? 'live' as const
+          : 'upcoming' as const;
+        const hasScore = status === 'live' || status === 'finished';
+        const minute = status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined;
+
+        list.push({
+          id: `espn-${evt.homeAbbr}-${evt.awayAbbr}`,
+          homeTeamId: homeId ?? null,
+          awayTeamId: awayId ?? null,
+          homeLabel: evt.homeName,
+          awayLabel: evt.awayName,
+          date: evt.date || '',
+          time: evt.time || '',
+          venue: evt.venue || '',
+          city: evt.city || '',
+          roundLabel: 'Mata-mata',
+          homeScore: hasScore ? (parseInt(evt.homeScore, 10) || 0) : null,
+          awayScore: hasScore ? (parseInt(evt.awayScore, 10) || 0) : null,
+          status,
+        });
+
+        // Also add to liveMatches for the badge if live
+        if (status === 'live' && minute != null) {
+          useWorldCupStore.getState().setLiveMatches({
+            ...useWorldCupStore.getState().liveMatches,
+            [`espn-${evt.homeAbbr}-${evt.awayAbbr}`]: minute,
+          });
+        }
       }
     }
 
     return list;
-  }, [matches, bracket, knockoutLiveInfo]);
+  }, [matches, bracket, knockoutLiveInfo, rawKnockoutEvents]);
 
   // ── Classify into live / upcoming / finished ────────────────────
   const { liveList, nextUpList, recentList } = useMemo(() => {
@@ -174,16 +224,25 @@ export default function LiveTab() {
       })
       .slice(0, 8);
 
-    // Show ONLY today's upcoming matches (user timezone)
+    // Show today's upcoming matches (user timezone) + matches with no date (ESPN fallback)
     const todayLocal = new Intl.DateTimeFormat('sv-SE', {
       timeZone: timezone,
       year: 'numeric', month: '2-digit', day: '2-digit',
     }).format(new Date());
 
+    // Also compute yesterday and tomorrow for broader matching
+    const tomorrowDate = new Date(Date.now() + 86400000);
+    const tomorrowLocal = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(tomorrowDate);
+
     const upcomingSorted = upcoming
       .filter(m => {
+        // Show if no date (ESPN raw fallback) — these are recent knockout matches
+        if (!m.date) return true;
         const localDate = getLocalDate(m.date, m.time, timezone);
-        return localDate === todayLocal;
+        return localDate === todayLocal || localDate === tomorrowLocal;
       })
       .sort((a, b) => {
         const da = `${a.date}T${a.time}`;

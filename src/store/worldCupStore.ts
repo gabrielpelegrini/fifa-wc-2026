@@ -37,12 +37,18 @@ export interface KnockoutLiveEntry {
 export interface RawKnockoutEvent {
   homeAbbr: string;
   awayAbbr: string;
+  homeName: string;
+  awayName: string;
   homeScore: string;
   awayScore: string;
   statusName: string;
   clock?: number;
   displayClock?: string;
   shortDetail?: string;
+  date?: string;
+  time?: string;
+  venue?: string;
+  city?: string;
 }
 
 interface WorldCupState {
@@ -61,6 +67,7 @@ interface WorldCupState {
   lastPollTime: string | null;
   liveMatches: Record<string, number>;
   knockoutLiveInfo: Record<string, KnockoutLiveEntry>;
+  rawKnockoutEvents: RawKnockoutEvent[];
   isRefreshing: boolean;
 
   setScore: (matchId: string, home: number | null, away: number | null) => void;
@@ -115,6 +122,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     lastPollTime: null,
     liveMatches: {},
     knockoutLiveInfo: {},
+    rawKnockoutEvents: [],
     isRefreshing: false,
 
     setLastPollTime: (t: string | null) => set({ lastPollTime: t }),
@@ -332,6 +340,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       const update: Record<string, unknown> = {
         knockoutLiveInfo: newInfo,
         liveMatches: { ...get().liveMatches, ...newKnockoutLive },
+        rawKnockoutEvents: events, // Store raw ESPN data for LiveTab fallback display
       };
 
       // Auto-update knockout bracket with finished results so winners advance
