@@ -34,7 +34,7 @@ export default function Navigation() {
               <h1 className="text-sm sm:text-base font-bold leading-tight tracking-tight">
                 Copa do Mundo <span className="text-fifa-gold dark:text-fifa-gold">FIFA 2026</span>
               </h1>
-              <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">
+              <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">
                 Canadá · México · EUA
               </p>
             </div>
@@ -42,7 +42,7 @@ export default function Navigation() {
           <div className="flex items-center gap-1">
             {/* Live indicator */}
             {liveCount > 0 && (
-              <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 mr-1 live-glow rounded-md px-1.5 py-0.5">
+              <span className="flex items-center gap-1 text-[11px] font-bold text-red-400 mr-1 live-glow rounded-md px-1.5 py-0.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 {liveCount} ao vivo
               </span>

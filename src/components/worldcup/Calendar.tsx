@@ -226,7 +226,7 @@ export default function Calendar() {
           <span className="text-base sm:text-lg font-bold leading-tight">
             {formatDate(selectedDate, timezone)}
           </span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[11px] text-muted-foreground">
             Dia {dayNumber} de {totalDays}
           </span>
         </button>
@@ -256,7 +256,7 @@ export default function Calendar() {
               onClick={() => setDateIndex(i)}
               title={formatDate(d, timezone)}
               className={cn(
-                'w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center transition-all',
+                'w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center transition-all',
                 isCurrent
                   ? 'bg-primary text-primary-foreground scale-125 ring-2 ring-primary/30'
                   : isTodayDate
@@ -328,7 +328,7 @@ export default function Calendar() {
               <span className="text-xs font-medium text-muted-foreground">
                 {formatTime(time, timezone)}
               </span>
-              <span className="text-[10px] text-muted-foreground/60">
+              <span className="text-[11px] text-muted-foreground/60">
                 {timeMatches.length} {timeMatches.length === 1 ? 'jogo' : 'jogos'}
               </span>
             </div>
@@ -408,7 +408,7 @@ function MatchRow({
     >
       {/* Group/Round badge */}
       <div className={cn(
-        'shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold',
+        'shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold',
         isKnockout ? 'bg-fifa-gold/15 text-fifa-gold' : 'bg-primary/10 text-primary'
       )}>
         <span className="truncate px-0.5">{group}</span>
@@ -426,7 +426,7 @@ function MatchRow({
         <div className="flex flex-col items-center shrink-0">
           {isLive && liveMinute ? (
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+              <span className="text-[11px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 {liveMinute}&apos;min
               </span>
@@ -455,7 +455,7 @@ function MatchRow({
 
       {/* Venue */}
       {venue && (
-        <div className="hidden md:flex flex-col items-end shrink-0 text-[10px] text-muted-foreground max-w-[140px]">
+        <div className="hidden md:flex flex-col items-end shrink-0 text-[11px] text-muted-foreground max-w-[140px]">
           <span className="truncate">{venue}</span>
           {city && <span className="truncate">{city}{country ? `, ${country}` : ''}</span>}
         </div>

@@ -64,7 +64,12 @@ export function useLiveScores() {
       const res = await fetch(url);
       if (!res.ok) return;
 
-      const data: LiveScoresResponse = await res.json();
+      let data: LiveScoresResponse;
+      try {
+        data = await res.json();
+      } catch {
+        return; // Invalid JSON — skip this poll
+      }
 
       if (!mountedRef.current) return;
 
@@ -128,6 +133,17 @@ export function useLiveScores() {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+
+  // Page Visibility: poll immediately when tab becomes visible
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !pollingLock.current) {
+        poll();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [poll]);
 
   const toggleFastMode = useCallback(() => {
     setFastMode(prev => !prev);

@@ -69,6 +69,7 @@ interface WorldCupState {
   knockoutLiveInfo: Record<string, KnockoutLiveEntry>;
   rawKnockoutEvents: RawKnockoutEvent[];
   isRefreshing: boolean;
+  lastError: string | null;
 
   setScore: (matchId: string, home: number | null, away: number | null) => void;
   setScoreLive: (matchId: string, home: number, away: number, minute: number) => void;
@@ -124,9 +125,11 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     knockoutLiveInfo: {},
     rawKnockoutEvents: [],
     isRefreshing: false,
+    lastError: null,
 
     setLastPollTime: (t: string | null) => set({ lastPollTime: t }),
     setLiveMatches: (m: Record<string, number>) => set({ liveMatches: m }),
+    setLastError: (e: string | null) => set({ lastError: e }),
 
     setScore: (matchId, home, away) => {
       const newMatches = get().matches.map(m =>
@@ -199,7 +202,11 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
 
     updateKnockoutLive: (events) => {
       const { allStandings, knockoutResults, thirdPlaceRanking } = get();
-      if (events.length === 0) return;
+      // Clear stale live data when no knockout events from ESPN
+      if (events.length === 0) {
+        set({ knockoutLiveInfo: {}, rawKnockoutEvents: [] });
+        return;
+      }
 
       // Re-compute bracket to ensure latest team assignments (including 3rd place pools)
       const freshBracket = resolveBracket(allStandings, thirdPlaceRanking, knockoutResults);
@@ -366,13 +373,16 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     },
 
     refreshNow: async () => {
-      set({ isRefreshing: true });
+      set({ isRefreshing: true, lastError: null });
       try {
-        // Bypass server cache with _refresh parameter
         const url = `/api/live-scores?_refresh=${Date.now()}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (data.source && data.source !== 'espn') {
+          set({ lastError: 'Erro ao buscar dados. Tente novamente.' });
+          return;
+        }
         if (data.scores) {
           get().bulkUpdateFromESPN(data.scores);
         }
@@ -380,8 +390,10 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           get().updateKnockoutLive(data.knockoutEvents);
         }
         get().setLastPollTime(new Date().toISOString());
-      } catch { /* silently fail */ }
-      finally {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+        set({ lastError: `Falha ao atualizar: ${msg}` });
+      } finally {
         set({ isRefreshing: false });
       }
     },

@@ -73,7 +73,7 @@ export default function GroupTables() {
                       >
                         <td className="py-2 px-2 text-center">
                           <span className={cn(
-                            'inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold',
+                            'inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold',
                             qualified && 'bg-fifa-green text-primary-foreground',
                             possibleThird && 'bg-fifa-gold/80 text-white',
                             !qualified && !possibleThird && 'bg-muted text-muted-foreground'
@@ -89,7 +89,7 @@ export default function GroupTables() {
                             <FlagIcon teamId={s.teamId} size={20} />
                             <span className="font-medium">{getTeamName(s.teamId)}</span>
                             {qualified && (
-                              <span className="text-[10px] text-fifa-green dark:text-fifa-green hidden sm:inline">
+                              <span className="text-[11px] text-fifa-green dark:text-fifa-green hidden sm:inline">
                                 R32
                               </span>
                             )}
@@ -169,7 +169,7 @@ function ThirdPlaceSection({ thirds }: { thirds: ReturnType<typeof useWorldCupSt
               >
                 <td className="py-2 px-2 text-center">
                   <span className={cn(
-                    'inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold',
+                    'inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold',
                     t.qualified ? 'bg-fifa-green text-primary-foreground' : 'bg-muted text-muted-foreground'
                   )}>
                     {t.rank}
@@ -187,9 +187,9 @@ function ThirdPlaceSection({ thirds }: { thirds: ReturnType<typeof useWorldCupSt
                 <td className="text-center py-2 px-1">{t.goalsFor}</td>
                 <td className="text-center py-2 px-1">
                   {t.qualified ? (
-                    <span className="text-fifa-green text-[10px] font-semibold">CLASSIFICADO</span>
+                    <span className="text-fifa-green text-[11px] font-semibold">CLASSIFICADO</span>
                   ) : (
-                    <span className="text-muted-foreground text-[10px]">Eliminado</span>
+                    <span className="text-muted-foreground text-[11px]">Eliminado</span>
                   )}
                 </td>
               </tr>

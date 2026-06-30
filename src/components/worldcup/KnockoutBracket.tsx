@@ -57,8 +57,8 @@ export default function KnockoutBracket() {
     <div className="space-y-4">
       {/* Info banner */}
       {!hasKnockoutResults && (
-        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 text-center" role="note">
-          <p className="text-xs text-yellow-600 dark:text-yellow-400">
+        <div className="rounded-lg border border-fifa-gold/30 bg-fifa-gold/5 p-3 text-center" role="note">
+          <p className="text-xs text-fifa-gold-dark dark:text-fifa-gold">
             Chaveamento oficial FIFA Copa do Mundo 2026.
             Os confrontos serao confirmados apos o encerramento de todos os grupos.
           </p>
@@ -199,8 +199,8 @@ function BracketSingleMatch({
   highlight?: boolean;
 }) {
   return (
-    <div className={cn('rounded-lg border p-2', highlight && 'border-yellow-500/50 bg-yellow-500/5')}>
-      <div className="text-[10px] font-bold text-center text-muted-foreground mb-1">{label}</div>
+    <div className={cn('rounded-lg border p-2', highlight && 'border-fifa-gold/50 bg-fifa-gold/5')}>
+      <div className="text-[11px] font-bold text-center text-muted-foreground mb-1">{label}</div>
       <BracketMatchCard match={match} compact />
     </div>
   );
@@ -250,7 +250,7 @@ function BracketMatchCard({
         {match.homeTeam && <FlagIcon teamId={match.homeTeam} size={16} aria-hidden="true" />}
         <span className={cn(
           'flex-1 truncate',
-          compact ? 'text-[10px]' : 'text-xs',
+          compact ? 'text-[11px]' : 'text-xs',
           match.homeTeam && 'font-medium',
           isFinished && homeWinner && 'text-fifa-green font-bold',
         )}>
@@ -259,7 +259,7 @@ function BracketMatchCard({
         {hasScore && (
           <span className={cn(
             'font-bold tabular-nums',
-            compact ? 'text-[10px]' : 'text-xs',
+            compact ? 'text-[11px]' : 'text-xs',
             isFinished && homeWinner && 'text-fifa-green',
           )}>
             {match.homeScore}
@@ -271,7 +271,7 @@ function BracketMatchCard({
         {match.awayTeam && <FlagIcon teamId={match.awayTeam} size={16} aria-hidden="true" />}
         <span className={cn(
           'flex-1 truncate',
-          compact ? 'text-[10px]' : 'text-xs',
+          compact ? 'text-[11px]' : 'text-xs',
           match.awayTeam && 'font-medium',
           isFinished && awayWinner && 'text-fifa-green font-bold',
         )}>
@@ -280,7 +280,7 @@ function BracketMatchCard({
         {hasScore && (
           <span className={cn(
             'font-bold tabular-nums',
-            compact ? 'text-[10px]' : 'text-xs',
+            compact ? 'text-[11px]' : 'text-xs',
             isFinished && awayWinner && 'text-fifa-green',
           )}>
             {match.awayScore}
@@ -293,7 +293,7 @@ function BracketMatchCard({
       {isLive && (
         <div className="flex items-center gap-1 mt-1" role="status" aria-label={`Ao vivo, minuto ${match.liveMinute ?? 0}`}>
           <Radio className="h-2.5 w-2.5 text-red-400 animate-pulse" />
-          <span className="text-[10px] font-bold text-red-400">
+          <span className="text-[11px] font-bold text-red-400">
             {match.liveMinute && match.liveMinute > 0 ? `${match.liveMinute}'` : 'AO VIVO'}
             {match.displayClock && <span className="ml-1 text-red-400/60">{match.displayClock}</span>}
           </span>
@@ -302,7 +302,7 @@ function BracketMatchCard({
 
       {/* Penalty score display */}
       {isPenalty && (
-        <div className="text-[10px] text-fifa-gold mt-0.5 font-medium" aria-label={`Penaltis: ${match.penaltyHome} x ${match.penaltyAway}`}>
+        <div className="text-[11px] text-fifa-gold mt-0.5 font-medium" aria-label={`Penaltis: ${match.penaltyHome} x ${match.penaltyAway}`}>
           Penaltis: {match.penaltyHome} x {match.penaltyAway}
         </div>
       )}
@@ -311,13 +311,13 @@ function BracketMatchCard({
       {isFinished && !isLive && !compact && (
         <div className="flex items-center gap-1 mt-1 text-muted-foreground">
           <CheckCircle2 className="h-2.5 w-2.5" aria-hidden="true" />
-          <span className="text-[10px]">Encerrado</span>
+          <span className="text-[11px]">Encerrado</span>
         </div>
       )}
 
       {/* Venue + date */}
       {!compact && (
-        <div className="text-[10px] text-muted-foreground mt-1 truncate">
+        <div className="text-[11px] text-muted-foreground mt-1 truncate">
           {match.venue} · {formatBracketDate(match.date)}
         </div>
       )}
@@ -362,8 +362,8 @@ function BracketListView({
         </div>
       ))}
       <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="bg-yellow-500/10 px-3 py-1.5">
-          <span className="font-bold text-xs">Decisoes</span>
+        <div className="bg-fifa-gold/10 px-3 py-1.5">
+          <span className="font-bold text-xs">Decisões</span>
         </div>
         <div className="divide-y">
           <MobileMatchRow match={bracket.thirdPlace} />
@@ -402,7 +402,7 @@ function MobileMatchRow({
 
   return (
     <div
-      className={cn('w-full flex items-center gap-2 p-3', highlight && 'bg-yellow-500/5')}
+      className={cn('w-full flex items-center gap-2 p-3', highlight && 'bg-fifa-gold/5')}
       role="group"
       aria-label={`${homeLabel} vs ${awayLabel}${isLive ? ' - Ao vivo' : ''}`}
     >
@@ -416,12 +416,12 @@ function MobileMatchRow({
             <div className="flex flex-col items-center">
               <span className={cn('text-sm font-bold tabular-nums', homeWinner && 'text-fifa-green')}>{match.homeScore}</span>
               {isPenalty && (
-                <span className="text-[10px] text-fifa-gold font-medium" aria-label={`Penaltis ${match.penaltyHome} x ${match.penaltyAway}`}>
+                <span className="text-[11px] text-fifa-gold font-medium" aria-label={`Penaltis ${match.penaltyHome} x ${match.penaltyAway}`}>
                   ({match.penaltyHome}-{match.penaltyAway})
                 </span>
               )}
-              {!isPenalty && <span className="text-[10px] text-muted-foreground">x</span>}
-              {isPenalty && <span className="text-[10px] text-muted-foreground"> </span>}
+              {!isPenalty && <span className="text-[11px] text-muted-foreground">x</span>}
+              {isPenalty && <span className="text-[11px] text-muted-foreground"> </span>}
               <span className={cn('text-sm font-bold tabular-nums', awayWinner && 'text-fifa-green')}>{match.awayScore}</span>
             </div>
           ) : isLive ? (

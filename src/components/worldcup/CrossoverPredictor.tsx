@@ -149,14 +149,14 @@ function PathCard({
       {/* R32 opponent */}
       {r32Match && (
         <div className="mb-3">
-          <div className="text-[10px] text-muted-foreground uppercase mb-1">Na fase dos 32-avos:</div>
+          <div className="text-[11px] text-muted-foreground uppercase mb-1">Na fase dos 32-avos:</div>
           <div className="flex items-center gap-2 text-sm">
             <FlagIcon teamId={teamId} size={18} />
             <span className="font-medium">{getTeamName(teamId)}</span>
             <span className="text-muted-foreground">×</span>
             <span className="font-medium">{getSlotLabel(path.opponentSlot)}</span>
           </div>
-          <div className="text-[10px] text-muted-foreground mt-1">
+          <div className="text-[11px] text-muted-foreground mt-1">
             {r32Match.venue} · {r32Match.date}
           </div>
         </div>
@@ -165,11 +165,11 @@ function PathCard({
       {/* Path visualization */}
       {path.path.length > 0 && (
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[10px] text-muted-foreground">Caminho:</span>
+          <span className="text-[11px] text-muted-foreground">Caminho:</span>
           {path.path.map((step, i) => (
             <span key={i} className="flex items-center gap-1">
-              {i > 0 && <span className="text-muted-foreground text-[10px]">→</span>}
-              <span className="inline-block rounded bg-muted px-2 py-0.5 text-[10px] font-medium">
+              {i > 0 && <span className="text-muted-foreground text-[11px]">→</span>}
+              <span className="inline-block rounded bg-muted px-2 py-0.5 text-[11px] font-medium">
                 {step.replace('R32', '32-avos').replace('R16', 'Oitavas').replace('QF', 'Quartas').replace('SF', 'Semi').replace('FINAL', 'Final')}
               </span>
             </span>

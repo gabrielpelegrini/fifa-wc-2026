@@ -130,7 +130,7 @@ export function TopScorersPanel() {
       <div className="bg-fifa-gold/10 px-3 py-2 flex items-center gap-1.5">
         <Trophy className="h-3.5 w-3.5 text-fifa-gold" />
         <span className="text-xs font-bold uppercase tracking-wider">Artilharia</span>
-        <span className="text-[10px] text-muted-foreground ml-auto">G · A</span>
+        <span className="text-[11px] text-muted-foreground ml-auto">G · A</span>
       </div>
       <div className="divide-y">
         {MOCK_SCORERS.map((scorer, i) => (
@@ -142,7 +142,7 @@ export function TopScorersPanel() {
             )}
           >
             <span className={cn(
-              'text-[10px] font-bold w-4 text-center',
+              'text-[11px] font-bold w-4 text-center',
               i === 0 ? 'text-fifa-gold' : i === 1 ? 'text-muted-foreground' : i === 2 ? 'text-amber-700 dark:text-amber-500' : 'text-muted-foreground/50'
             )}>
               {i + 1}
@@ -155,8 +155,8 @@ export function TopScorersPanel() {
             </div>
             <div className="flex items-center gap-2 tabular-nums">
               <span className="text-xs font-bold">{scorer.goals}</span>
-              <span className="text-[10px] text-muted-foreground">·</span>
-              <span className="text-[10px] text-muted-foreground">{scorer.assists}</span>
+              <span className="text-[11px] text-muted-foreground">·</span>
+              <span className="text-[11px] text-muted-foreground">{scorer.assists}</span>
             </div>
           </div>
         ))}

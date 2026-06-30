@@ -16,7 +16,7 @@ export default function FlagIcon({ teamId, size = 24, className = '' }: FlagIcon
   if (!team || team.flag === 'tbd') {
     return (
       <div
-        className={`inline-flex items-center justify-center rounded bg-muted text-[10px] font-bold text-muted-foreground ${className}`}
+        className={`inline-flex items-center justify-center rounded bg-muted text-[11px] font-bold text-muted-foreground ${className}`}
         style={{ width: size, height: size, minWidth: size }}
       >
         ?

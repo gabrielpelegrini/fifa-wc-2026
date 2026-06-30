@@ -107,14 +107,16 @@ function buildFetchDates(): string[] {
 
 // ── Build match lookup ─────────────────────────────────────────────────
 
+let _matchLookup: Map<string, string> | null = null;
 function getMatchLookup(): Map<string, string> {
-  const lookup = new Map<string, string>();
+  if (_matchLookup) return _matchLookup;
+  _matchLookup = new Map<string, string>();
   for (const m of GROUP_MATCHES) {
     const pair = [m.homeTeam, m.awayTeam].sort().join(':');
     const key = `${m.group}:${pair}`;
-    lookup.set(key, m.id);
+    _matchLookup.set(key, m.id);
   }
-  return lookup;
+  return _matchLookup;
 }
 
 // ── Fetch ESPN scoreboard for a single date ────────────────────────────
@@ -122,11 +124,12 @@ function getMatchLookup(): Map<string, string> {
 async function fetchESPNDate(dateStr: string, signal?: AbortSignal): Promise<ESPNEvent[]> {
   try {
     const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`;
-    const res = await fetch(url, { signal, next: { revalidate: 0 } });
+    const res = await fetch(url, { signal, next: { revalidate: 60 } });
     if (!res.ok) return [];
     const data = await res.json();
     return data.events ?? [];
-  } catch {
+  } catch (err) {
+    console.error(`[live-scores] ESPN fetch failed for ${dateStr}:`, err);
     return [];
   }
 }
@@ -290,7 +293,6 @@ export async function GET(request: Request) {
       scores,
       knockoutEvents: rawKnockout,
       source: 'espn',
-      _debug: { total: Object.keys(scores).length, finished: finishedCount, live: liveCount, knockout: rawKnockout.length, dates: ALL_DATES.length },
       pollIntervalMs: 5 * 60 * 1000,
     });
   } catch (error) {
@@ -300,7 +302,7 @@ export async function GET(request: Request) {
       scores: {},
       knockoutEvents: [],
       source: 'error',
-      error: isTimeout ? 'ESPN timeout — too many dates' : String(error),
+      error: isTimeout ? 'ESPN timeout — too many dates' : 'Internal server error',
       pollIntervalMs: 5 * 60 * 1000,
     });
   } finally {

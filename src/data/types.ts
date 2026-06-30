@@ -43,6 +43,7 @@ export interface TeamStanding {
   goalsAgainst: number;
   goalDiff: number;
   points: number;
+  fairPlay: number;
   position: number;
 }
 
@@ -75,22 +76,6 @@ export interface KnockoutMatch {
   penaltyAway?: number | null;
   date: string;
   time: string; // HH:MM in UTC
-  venue: string;
-  city: string;
-}
-
-export interface BracketMatch {
-  id: string;
-  round: 'r32' | 'r16' | 'qf' | 'sf' | 'third_place' | 'final';
-  homeSlot: string; // slot reference string
-  awaySlot: string;
-  homeTeam?: string;
-  awayTeam?: string;
-  homeScore?: number | null;
-  awayScore?: number | null;
-  feederHome?: string; // winner of which match
-  feederAway?: string;
-  date: string;
   venue: string;
   city: string;
 }

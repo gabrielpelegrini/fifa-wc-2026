@@ -471,7 +471,7 @@ function RoundColumn({
     <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
       {/* Round label */}
       <div className="h-8 flex items-center justify-center mb-1">
-        <span className="text-[10px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
+        <span className="text-[11px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
           {title}
         </span>
       </div>
@@ -511,7 +511,7 @@ function SingleMatchColumn({
   return (
     <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
       <div className="h-8 flex items-center justify-center mb-1">
-        <span className="text-[10px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
+        <span className="text-[11px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
           {label}
         </span>
       </div>
@@ -568,7 +568,7 @@ function DesktopBracket(data: {
         {/* SF + Trophy + 3rd Place */}
         <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W + 10 }}>
           <div className="h-8 flex items-center justify-center mb-1">
-            <span className="text-[10px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
+            <span className="text-[11px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
               SEMIFINAIS
             </span>
           </div>
@@ -613,7 +613,7 @@ function DesktopBracket(data: {
         {/* Final */}
         <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
           <div className="h-8 flex items-center justify-center mb-1">
-            <span className="text-[10px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
+            <span className="text-[11px] font-bold tracking-[0.2em] text-[#D4AF37] uppercase">
               FINAL
             </span>
           </div>
@@ -691,7 +691,7 @@ function MobileMatchRow({ match, highlight = false }: { match: MatchDisplay; hig
                 >
                   {match.homeScore}
                 </span>
-                <span className="text-[10px] text-gray-600">&times;</span>
+                <span className="text-[11px] text-gray-600">&times;</span>
                 <span
                   className={cn(
                     'text-sm font-bold tabular-nums',
@@ -711,12 +711,12 @@ function MobileMatchRow({ match, highlight = false }: { match: MatchDisplay; hig
           ) : isLive ? (
             <div className="flex items-center gap-1 justify-center">
               <Radio className="w-3 h-3 text-red-400 animate-pulse" />
-              <span className="text-[10px] font-bold text-red-400">
+              <span className="text-[11px] font-bold text-red-400">
                 {match.liveMinute && match.liveMinute > 0 ? `${match.liveMinute}'` : 'AO VIVO'}
               </span>
             </div>
           ) : (
-            <span className="text-[10px] text-gray-600">{fmtDate(match.date)}</span>
+            <span className="text-[11px] text-gray-600">{fmtDate(match.date)}</span>
           )}
         </div>
 
@@ -757,7 +757,7 @@ function MobileRoundSection({
         <span className="text-xs font-bold tracking-[0.15em] text-[#D4AF37] uppercase">
           {title}
         </span>
-        <span className="text-[10px] text-gray-600 ml-2">({matches.length} jogos)</span>
+        <span className="text-[11px] text-gray-600 ml-2">({matches.length} jogos)</span>
       </div>
       <div className="max-h-96 overflow-y-auto scrollbar-thin">
         {matches.map((m) => (

@@ -81,7 +81,7 @@ function AnimatedScore({ score }: { score: number }) {
 }
 
 export default function LiveTab() {
-  const { matches, bracket, timezone, liveMatches, knockoutLiveInfo, rawKnockoutEvents, refreshNow } = useWorldCupStore();
+  const { matches, bracket, timezone, liveMatches, knockoutLiveInfo, rawKnockoutEvents, refreshNow, lastError } = useWorldCupStore();
   const { poll, lastPollTime, fastMode, toggleFastMode, isRefreshing } = useLiveScores();
   const [initialLoading, setInitialLoading] = useState(true);
   const share = useShareResult();
@@ -181,8 +181,8 @@ export default function LiveTab() {
           venue: evt.venue || '',
           city: evt.city || '',
           roundLabel: 'Mata-mata',
-          homeScore: hasScore ? (parseInt(evt.homeScore, 10) || 0) : null,
-          awayScore: hasScore ? (parseInt(evt.awayScore, 10) || 0) : null,
+          homeScore: hasScore ? parseInt(evt.homeScore, 10) : null,
+          awayScore: hasScore ? parseInt(evt.awayScore, 10) : null,
           status,
         });
       }
@@ -303,6 +303,11 @@ export default function LiveTab() {
 
   return (
     <div className="space-y-6">
+      {lastError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-center" role="alert">
+          <p className="text-xs text-destructive">{lastError}</p>
+        </div>
+      )}
       {/* Controls bar */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -339,7 +344,7 @@ export default function LiveTab() {
         </div>
 
         {lastPollDisplay && (
-          <span className="text-[10px] text-muted-foreground hidden sm:inline">
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
             {`Última atualização: ${lastPollDisplay}`}
             {fastMode && <span className="text-fifa-gold ml-1">{'\u00B7 30s'}</span>}
           </span>
@@ -372,7 +377,7 @@ export default function LiveTab() {
             ))}
           </div>
           {Object.keys(liveMatches).length > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-2">
+            <p className="text-[11px] text-muted-foreground mt-2">
               Dados reais via ESPN
             </p>
           )}
@@ -385,7 +390,7 @@ export default function LiveTab() {
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Próximos Jogos</h2>
-            <span className="text-[10px] text-muted-foreground capitalize">({todayLabel})</span>
+            <span className="text-[11px] text-muted-foreground capitalize">({todayLabel})</span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {nextUpList.map(m => (
@@ -432,7 +437,7 @@ export default function LiveTab() {
                     .join('\n');
                   share(`Copa do Mundo 2026 - Resultados:\n${text}\n\nDados: FIFA WC 2026 App`);
                 }}
-                className="flex items-center gap-1 text-[10px] text-fifa-green hover:text-fifa-gold transition-colors"
+                className="flex items-center gap-1 text-[11px] text-fifa-green hover:text-fifa-gold transition-colors"
               >
                 <Share2 className="h-3 w-3" />
                 Compartilhar
@@ -477,10 +482,10 @@ function LiveMatchCard({
   return (
     <div className="rounded-xl border border-red-500/40 bg-red-950/20 p-3 sm:p-4 live-glow">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">
+        <span className="text-[11px] font-bold text-red-400 uppercase tracking-wider">
           {roundLabel}
         </span>
-        <span className="flex items-center gap-1 text-[10px] font-bold text-red-400">
+        <span className="flex items-center gap-1 text-[11px] font-bold text-red-400">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
           {minuteDisplay}
         </span>
@@ -498,7 +503,7 @@ function LiveMatchCard({
           {awayTeamId && <FlagIcon teamId={awayTeamId} size={28} />}
         </div>
       </div>
-      <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
+      <div className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground">
         <MapPin className="h-3 w-3" />
         {`${venue} · ${city}`}
       </div>
@@ -517,7 +522,7 @@ function UpcomingMatchCard({
   return (
     <div className="rounded-xl border border-border bg-card p-3 sm:p-4 hover:border-fifa-green/30 transition-colors">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
           {roundLabel}
         </span>
         <span className="text-xs font-medium text-fifa-green flex items-center gap-1">
@@ -536,7 +541,7 @@ function UpcomingMatchCard({
           {awayTeamId && <FlagIcon teamId={awayTeamId} size={28} />}
         </div>
       </div>
-      <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
+      <div className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground">
         <MapPin className="h-3 w-3" />
         {`${venue} · ${city}`}
       </div>
@@ -559,10 +564,10 @@ function FinishedMatchCard({
   return (
     <div className="rounded-xl border border-border/50 bg-card/50 p-3 sm:p-4 opacity-80">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
           {roundLabel}
         </span>
-        <span className="text-[10px] text-muted-foreground">Encerrado</span>
+        <span className="text-[11px] text-muted-foreground">Encerrado</span>
       </div>
       <div className="flex items-center justify-between gap-3">
         <div className={cn('flex items-center gap-2 flex-1 min-w-0', homeWon && 'font-semibold')}>
@@ -577,7 +582,7 @@ function FinishedMatchCard({
           {awayTeamId && <FlagIcon teamId={awayTeamId} size={28} />}
         </div>
       </div>
-      <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
+      <div className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground">
         <MapPin className="h-3 w-3" />
         {`${venue} · ${city}`}
       </div>

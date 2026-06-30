@@ -22,6 +22,7 @@ export function calculateGroupStandings(
       goalsAgainst: 0,
       goalDiff: 0,
       points: 0,
+      fairPlay: 0,
       position: 0,
     });
   }
@@ -79,8 +80,8 @@ function applyTiebreakers(
     if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;
     if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
     // Fair play (negative = fewer cards = better)
-    const aFP = (a as unknown as Record<string, unknown>).fairPlay as number | undefined ?? 0;
-    const bFP = (b as unknown as Record<string, unknown>).fairPlay as number | undefined ?? 0;
+    const aFP = 'fairPlay' in a ? a.fairPlay : 0;
+    const bFP = 'fairPlay' in b ? b.fairPlay : 0;
     if (aFP !== bFP) return aFP - bFP;
     return 0;
   });
