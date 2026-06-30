@@ -143,7 +143,7 @@ export function TopScorersPanel() {
           >
             <span className={cn(
               'text-[11px] font-bold w-4 text-center',
-              i === 0 ? 'text-fifa-gold' : i === 1 ? 'text-muted-foreground' : i === 2 ? 'text-amber-700 dark:text-amber-500' : 'text-muted-foreground/50'
+              i === 0 ? 'text-fifa-gold' : i === 1 ? 'text-fifa-gold/70' : i === 2 ? 'text-fifa-gold/50' : 'text-muted-foreground/50'
             )}>
               {i + 1}
             </span>

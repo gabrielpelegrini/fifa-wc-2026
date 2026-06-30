@@ -249,13 +249,26 @@ function buildEnrichedBracket(
     };
   });
 
+  // Partition by round field (no fragile hardcoded slice indices)
+  const byRound = new Map<string, MatchDisplay[]>();
+  for (const m of resolved) {
+    const arr = byRound.get(m.round) || [];
+    arr.push(m);
+    byRound.set(m.round, arr);
+  }
+  const get = (round: string) => (byRound.get(round) || []) as MatchDisplay[];
+  const getOne = (round: string) => {
+    const arr = byRound.get(round);
+    return (arr && arr[0]) as MatchDisplay;
+  };
+
   return {
-    r32: resolved.slice(0, 16) as MatchDisplay[],
-    r16: resolved.slice(16, 24) as MatchDisplay[],
-    qf: resolved.slice(24, 28) as MatchDisplay[],
-    sf: resolved.slice(28, 30) as MatchDisplay[],
-    thirdPlace: resolved[30] as MatchDisplay,
-    final: resolved[31] as MatchDisplay,
+    r32: get('r32'),
+    r16: get('r16'),
+    qf: get('qf'),
+    sf: get('sf'),
+    thirdPlace: getOne('third_place'),
+    final: getOne('final'),
   };
 }
 
@@ -399,7 +412,7 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
       {isLive && (
         <div className="flex items-center gap-1 mt-1" role="status" aria-label={`Ao vivo, minuto ${match.liveMinute ?? 0}`}>
           <Radio className="w-2.5 h-2.5 text-red-400 animate-pulse" />
-          <span className="text-[9px] font-bold text-red-400 tracking-wide">
+          <span className="text-[11px] font-bold text-red-400 tracking-wide">
             {match.liveMinute && match.liveMinute > 0 ? `${match.liveMinute}'` : 'AO VIVO'}
             {match.displayClock && (
               <span className="ml-1 text-red-400/60">{match.displayClock}</span>
@@ -410,7 +423,7 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
 
       {/* Penalty info */}
       {isPenalty && (
-        <div className="text-[9px] text-[#D4AF37] mt-0.5 font-semibold text-center tracking-wide">
+        <div className="text-[11px] text-[#D4AF37] mt-0.5 font-semibold text-center tracking-wide">
           PEN {match.penaltyHome}\u2013{match.penaltyAway}
         </div>
       )}
@@ -419,13 +432,13 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
       {isFinished && !isLive && !isFinal && (
         <div className="flex items-center gap-1 mt-0.5 text-gray-600">
           <CheckCircle2 className="w-2.5 h-2.5" />
-          <span className="text-[9px]">Encerrado</span>
+          <span className="text-[11px]">Encerrado</span>
         </div>
       )}
 
       {/* Final venue */}
       {isFinal && (
-        <div className="text-[9px] text-gray-500 mt-1 text-center truncate">
+        <div className="text-[11px] text-gray-500 mt-1 text-center truncate">
           {match.venue} &middot; {match.city}
         </div>
       )}
@@ -597,7 +610,7 @@ function DesktopBracket(data: {
               className="absolute w-full"
               style={{ top: TOTAL_H - CARD_H - 12 }}
             >
-              <div className="text-[9px] font-bold text-[#D4AF37]/60 text-center mb-1 tracking-wider uppercase">
+              <div className="text-[11px] font-bold text-[#D4AF37]/60 text-center mb-1 tracking-wider uppercase">
                 3\u00B0 Lugar
               </div>
               <MatchCard match={thirdPlace} />
@@ -663,7 +676,7 @@ function MobileMatchRow({ match, highlight = false }: { match: MatchDisplay; hig
             <FlagIcon teamId={match.homeTeamId} size={20} />
           ) : (
             <div className="w-5 h-5 flex-shrink-0 rounded bg-gray-800 flex items-center justify-center">
-              <span className="text-[8px] text-gray-600 font-bold">?</span>
+              <span className="text-[11px] text-gray-600 font-bold">?</span>
             </div>
           )}
           <span
@@ -703,7 +716,7 @@ function MobileMatchRow({ match, highlight = false }: { match: MatchDisplay; hig
                 </span>
               </div>
               {isPenalty && (
-                <span className="text-[9px] text-[#D4AF37] font-semibold">
+                <span className="text-[11px] text-[#D4AF37] font-semibold">
                   PEN {match.penaltyHome}&ndash;{match.penaltyAway}
                 </span>
               )}
@@ -735,7 +748,7 @@ function MobileMatchRow({ match, highlight = false }: { match: MatchDisplay; hig
             <FlagIcon teamId={match.awayTeamId} size={20} />
           ) : (
             <div className="w-5 h-5 flex-shrink-0 rounded bg-gray-800 flex items-center justify-center">
-              <span className="text-[8px] text-gray-600 font-bold">?</span>
+              <span className="text-[11px] text-gray-600 font-bold">?</span>
             </div>
           )}
         </div>

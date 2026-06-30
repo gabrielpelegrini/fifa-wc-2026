@@ -6,6 +6,7 @@ import { useLiveScores } from '@/hooks/useLiveScores';
 import { getTeamName } from '@/lib/standings';
 import { formatTime, getLocalDate } from '@/lib/dateUtils';
 import { getSlotLabel } from '@/lib/bracketResolver';
+import { classifyESPNStatus } from '@/lib/espnStatus';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
 import { Clock, MapPin, Zap, RefreshCw, Loader2, Share2 } from 'lucide-react';
@@ -162,12 +163,7 @@ export default function LiveTab() {
         const pairKey = (homeId && awayId) ? [homeId, awayId].sort().join(':') : null;
         if (pairKey && matchedAbbrPairs.has(pairKey)) continue; // Already shown via bracket
 
-        const status = evt.statusName === 'STATUS_FULL_TIME' ? 'finished'
-          : (evt.statusName === 'STATUS_IN_PROGRESS' || evt.statusName === 'STATUS_HALFTIME' ||
-             evt.statusName === 'STATUS_1ST_PERIOD' || evt.statusName === 'STATUS_2ND_PERIOD' ||
-             evt.statusName === 'STATUS_EXTRA_TIME' || evt.statusName === 'STATUS_PENALTY_SHOOTOUT')
-            ? 'live' as const
-          : 'upcoming' as const;
+        const status = classifyESPNStatus(evt.statusName);
         const hasScore = status === 'live' || status === 'finished';
 
         list.push({
@@ -181,8 +177,8 @@ export default function LiveTab() {
           venue: evt.venue || '',
           city: evt.city || '',
           roundLabel: 'Mata-mata',
-          homeScore: hasScore ? parseInt(evt.homeScore, 10) : null,
-          awayScore: hasScore ? parseInt(evt.awayScore, 10) : null,
+          homeScore: hasScore ? (parseInt(evt.homeScore, 10) || null) : null,
+          awayScore: hasScore ? (parseInt(evt.awayScore, 10) || null) : null,
           status,
         });
       }
@@ -366,8 +362,8 @@ export default function LiveTab() {
                 awayTeamId={m.awayTeamId}
                 homeLabel={m.homeLabel}
                 awayLabel={m.awayLabel}
-                homeScore={m.homeScore ?? 0}
-                awayScore={m.awayScore ?? 0}
+                homeScore={m.homeScore}
+                awayScore={m.awayScore}
                 minute={liveMatches[m.id] ?? 0}
                 venue={m.venue}
                 city={m.city}
@@ -433,7 +429,7 @@ export default function LiveTab() {
                 onClick={() => {
                   const text = recentList
                     .slice(0, 4)
-                    .map(m => `${m.homeLabel} ${m.homeScore}×${m.awayScore} ${m.awayLabel}`)
+                    .map(m => `${m.homeLabel} ${m.homeScore ?? '?'}×${m.awayScore ?? '?'} ${m.awayLabel}`)
                     .join('\n');
                   share(`Copa do Mundo 2026 - Resultados:\n${text}\n\nDados: FIFA WC 2026 App`);
                 }}
@@ -475,9 +471,10 @@ function LiveMatchCard({
 }: {
   homeTeamId: string | null; awayTeamId: string | null;
   homeLabel: string; awayLabel: string;
-  homeScore: number; awayScore: number; minute: number;
+  homeScore: number | null; awayScore: number | null; minute: number;
   venue: string; city: string; roundLabel: string; timezone: string;
 }) {
+  const hasScore = homeScore !== null && awayScore !== null;
   const minuteDisplay = minute > 0 ? `${minute}'` : 'AO VIVO';
   return (
     <div className="rounded-xl border border-red-500/40 bg-red-950/20 p-3 sm:p-4 live-glow">
@@ -496,7 +493,7 @@ function LiveMatchCard({
           <span className="text-sm font-medium truncate">{homeLabel}</span>
         </div>
         <div className="text-xl font-bold text-red-300 tabular-nums shrink-0">
-          <AnimatedScore score={homeScore} /> × <AnimatedScore score={awayScore} />
+          {hasScore ? (<><AnimatedScore score={homeScore!} /> × <AnimatedScore score={awayScore!} /></>) : <span className="text-xs font-normal text-red-400/70">vs</span>}
         </div>
         <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
           <span className="text-sm font-medium truncate">{awayLabel}</span>

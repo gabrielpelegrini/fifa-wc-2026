@@ -38,18 +38,19 @@ export default function GroupTables() {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs sm:text-sm">
+                <caption className="sr-only">Tabela do Grupo {groupId} — Classificação e estatísticas</caption>
                 <thead>
                   <tr className="border-b bg-muted/30">
                     <th className="text-left py-2 px-2 w-8">#</th>
                     <th className="text-left py-2 px-1">Seleção</th>
-                    <th className="text-center py-2 px-1 w-8">J</th>
-                    <th className="text-center py-2 px-1 w-8">V</th>
-                    <th className="text-center py-2 px-1 w-8">E</th>
-                    <th className="text-center py-2 px-1 w-8">D</th>
-                    <th className="text-center py-2 px-1 w-8">GP</th>
-                    <th className="text-center py-2 px-1 w-8">GC</th>
-                    <th className="text-center py-2 px-1 w-8">SG</th>
-                    <th className="text-center py-2 px-1 w-10 font-bold">Pts</th>
+                    <th className="text-center py-2 px-1 w-8"><abbr title="Jogos" className="no-underline">J</abbr></th>
+                    <th className="text-center py-2 px-1 w-8"><abbr title="Vitórias" className="no-underline">V</abbr></th>
+                    <th className="text-center py-2 px-1 w-8"><abbr title="Empates" className="no-underline">E</abbr></th>
+                    <th className="text-center py-2 px-1 w-8"><abbr title="Derrotas" className="no-underline">D</abbr></th>
+                    <th className="text-center py-2 px-1 w-8"><abbr title="Gols Pró" className="no-underline">GP</abbr></th>
+                    <th className="text-center py-2 px-1 w-8"><abbr title="Gols Contra" className="no-underline">GC</abbr></th>
+                    <th className="text-center py-2 px-1 w-8"><abbr title="Saldo de Gols" className="no-underline">SG</abbr></th>
+                    <th className="text-center py-2 px-1 w-10 font-bold"><abbr title="Pontos" className="no-underline">Pts</abbr></th>
                     {loaded && <th className="w-8" />}
                   </tr>
                 </thead>
@@ -66,7 +67,7 @@ export default function GroupTables() {
                         className={cn(
                           'border-b last:border-0 transition-colors',
                           qualified && 'bg-green-500/10 dark:bg-green-500/5',
-                          possibleThird && 'bg-yellow-500/10 dark:bg-yellow-500/5',
+                          possibleThird && 'bg-fifa-gold/10 dark:bg-fifa-gold/5',
                           ph && 'opacity-60',
                           fav && 'bg-fifa-gold/5'
                         )}
@@ -147,6 +148,7 @@ function ThirdPlaceSection({ thirds }: { thirds: ReturnType<typeof useWorldCupSt
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs sm:text-sm">
+          <caption className="sr-only">Ranking dos Terceiros Colocados — 8 melhores classificam para os 32 avos de final</caption>
           <thead>
             <tr className="border-b bg-muted/30">
               <th className="text-left py-2 px-2 w-8">#</th>

@@ -24,7 +24,7 @@ export default function Home() {
         Pular para o conteúdo principal
       </a>
       <Navigation />
-      <main id="main-content" className="flex-1 mx-auto w-full max-w-7xl px-2 sm:px-4 py-4">
+      <main id="main-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`} className="flex-1 mx-auto w-full max-w-7xl px-2 sm:px-4 py-4">
         {activeTab === 'live' && <LiveTab />}
         {activeTab === 'calendar' && <Calendar />}
         {activeTab === 'groups' && <GroupTables />}

@@ -5,6 +5,7 @@ import { calculateGroupStandings } from '@/lib/standings';
 import { calculateThirdPlaceRanking } from '@/lib/thirdPlaceRanking';
 import { resolveBracket } from '@/lib/bracketResolver';
 import { ESPN_TO_TEAM } from '@/lib/espnMapping';
+import { classifyESPNStatus } from '@/lib/espnStatus';
 
 interface KnockoutResult {
   home: number;
@@ -285,21 +286,14 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
 
         if (!matchedEntry) continue;
 
-        // Classify status
-        let status: 'upcoming' | 'live' | 'finished' = 'upcoming';
-        if (evt.statusName === 'STATUS_FULL_TIME') status = 'finished';
-        else if (
-          evt.statusName === 'STATUS_IN_PROGRESS' ||
-          evt.statusName === 'STATUS_HALFTIME' ||
-          evt.statusName === 'STATUS_1ST_PERIOD' ||
-          evt.statusName === 'STATUS_2ND_PERIOD' ||
-          evt.statusName === 'STATUS_EXTRA_TIME' ||
-          evt.statusName === 'STATUS_PENALTY_SHOOTOUT'
-        ) status = 'live';
+        // Classify status using shared utility
+        const status = classifyESPNStatus(evt.statusName);
 
         const isLiveOrFinished = status === 'live' || status === 'finished';
-        const evtHomeScore = isLiveOrFinished ? (parseInt(evt.homeScore, 10) || 0) : null;
-        const evtAwayScore = isLiveOrFinished ? (parseInt(evt.awayScore, 10) || 0) : null;
+        const parsedHome = parseInt(evt.homeScore, 10);
+        const parsedAway = parseInt(evt.awayScore, 10);
+        const evtHomeScore = isLiveOrFinished && !isNaN(parsedHome) ? parsedHome : null;
+        const evtAwayScore = isLiveOrFinished && !isNaN(parsedAway) ? parsedAway : null;
 
         // Align scores to our bracket's home/away order
         let homeScore = evtHomeScore;

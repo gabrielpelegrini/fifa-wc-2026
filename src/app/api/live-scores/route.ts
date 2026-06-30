@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GROUP_MATCHES } from '@/data/worldcup';
 import { ESPN_TO_TEAM, extractGroup } from '@/lib/espnMapping';
+import { classifyESPNStatus } from '@/lib/espnStatus';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -155,21 +156,6 @@ async function fetchAllDatesBatched(dates: string[], signal?: AbortSignal): Prom
   return allEvents;
 }
 
-// ── Classify ESPN status ───────────────────────────────────────────────
-
-function classifyStatus(statusName: string): 'upcoming' | 'live' | 'finished' {
-  if (statusName === 'STATUS_FULL_TIME') return 'finished';
-  if (
-    statusName === 'STATUS_IN_PROGRESS' ||
-    statusName === 'STATUS_HALFTIME' ||
-    statusName === 'STATUS_1ST_PERIOD' ||
-    statusName === 'STATUS_2ND_PERIOD' ||
-    statusName === 'STATUS_EXTRA_TIME' ||
-    statusName === 'STATUS_PENALTY_SHOOTOUT'
-  ) return 'live';
-  return 'upcoming';
-}
-
 // ── Main GET handler ───────────────────────────────────────────────────
 
 export async function GET(request: Request) {
@@ -235,7 +221,7 @@ export async function GET(request: Request) {
       if (!matchId) continue;
 
       // Classify status
-      const statusType = classifyStatus(comp.status.type.name);
+      const statusType = classifyESPNStatus(comp.status.type.name);
       const isFinished = statusType === 'finished';
       const isLive = statusType === 'live';
 
