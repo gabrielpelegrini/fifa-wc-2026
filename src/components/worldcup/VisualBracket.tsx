@@ -17,12 +17,12 @@ import type { KnockoutMatch } from '@/data/types';
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
-const RH = 54; // row height in px (16 rows for R32 base)
+const RH = 58; // row height in px (16 rows for R32 base)
 const ROWS = 16;
-const TOTAL_H = ROWS * RH; // 864px
-const COL_W = 178;
-const CONN_W = 40;
-const CARD_H = 42; // match card height
+const TOTAL_H = ROWS * RH; // 928px
+const COL_W = 192;
+const CONN_W = 44;
+const CARD_H = 46; // match card height
 
 const GOLD = '#D4AF37';
 const GOLD_MID = 'rgba(212,175,55,0.50)';
@@ -180,6 +180,7 @@ function enrichMatch(
   m: KnockoutMatch,
   liveInfo: Record<string, KnockoutLiveEntry>,
   liveMatches: Record<string, number>,
+  espnTeams: Record<string, { homeTeam: string; awayTeam: string }>,
 ): MatchDisplay {
   const live = liveInfo[m.id];
   const hasLive = live && (live.status === 'live' || live.status === 'finished');
@@ -191,13 +192,18 @@ function enrichMatch(
     status = 'finished';
   }
 
+  // Use ESPN-confirmed teams when available, otherwise bracket resolver
+  const confirmed = espnTeams[m.id];
+  const homeTeamId = confirmed ? confirmed.homeTeam : m.homeTeam;
+  const awayTeamId = confirmed ? confirmed.awayTeam : m.awayTeam;
+
   return {
     id: m.id,
     round: m.round,
-    homeTeamId: m.homeTeam,
-    awayTeamId: m.awayTeam,
-    homeLabel: m.homeTeam ? getTeamName(m.homeTeam) : formatSlot(m.homeSlot),
-    awayLabel: m.awayTeam ? getTeamName(m.awayTeam) : formatSlot(m.awaySlot),
+    homeTeamId,
+    awayTeamId,
+    homeLabel: homeTeamId ? getTeamName(homeTeamId) : formatSlot(m.homeSlot),
+    awayLabel: awayTeamId ? getTeamName(awayTeamId) : formatSlot(m.awaySlot),
     homeSlot: m.homeSlot,
     awaySlot: m.awaySlot,
     homeScore: hasLive ? (live.homeScore ?? m.homeScore) : m.homeScore,
@@ -219,15 +225,16 @@ function buildEnrichedBracket(
   liveInfo: Record<string, KnockoutLiveEntry>,
   liveMatches: Record<string, number>,
   rawEvents: RawKnockoutEvent[],
+  espnTeams: Record<string, { homeTeam: string; awayTeam: string }>,
 ) {
-  // Pass 1: base enrichment from bracket + live data
+  // Pass 1: base enrichment from bracket + live data + ESPN confirmed teams
   const allFlat: MatchDisplay[] = [
-    ...bracket.r32.map((m) => enrichMatch(m, liveInfo, liveMatches)),
-    ...bracket.r16.map((m) => enrichMatch(m, liveInfo, liveMatches)),
-    ...bracket.qf.map((m) => enrichMatch(m, liveInfo, liveMatches)),
-    ...bracket.sf.map((m) => enrichMatch(m, liveInfo, liveMatches)),
-    enrichMatch(bracket.thirdPlace, liveInfo, liveMatches),
-    enrichMatch(bracket.final, liveInfo, liveMatches),
+    ...bracket.r32.map((m) => enrichMatch(m, liveInfo, liveMatches, espnTeams)),
+    ...bracket.r16.map((m) => enrichMatch(m, liveInfo, liveMatches, espnTeams)),
+    ...bracket.qf.map((m) => enrichMatch(m, liveInfo, liveMatches, espnTeams)),
+    ...bracket.sf.map((m) => enrichMatch(m, liveInfo, liveMatches, espnTeams)),
+    enrichMatch(bracket.thirdPlace, liveInfo, liveMatches, espnTeams),
+    enrichMatch(bracket.final, liveInfo, liveMatches, espnTeams),
   ];
 
   // Pass 2: resolve unresolved teams from raw ESPN events
@@ -549,7 +556,7 @@ function DesktopBracket(data: {
 
   return (
     <div
-      className="min-w-[1200px] overflow-x-auto"
+      className="min-w-[1320px] overflow-x-auto"
       role="region"
       aria-label="Chaveamento visual mata-mata"
     >
@@ -825,12 +832,12 @@ function MobileBracket(data: {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function VisualBracket() {
-  const { bracket, knockoutLiveInfo, rawKnockoutEvents, liveMatches } = useWorldCupStore();
+  const { bracket, knockoutLiveInfo, rawKnockoutEvents, liveMatches, espnBracketTeams } = useWorldCupStore();
 
   const data = useMemo(() => {
     if (!bracket) return null;
-    return buildEnrichedBracket(bracket, knockoutLiveInfo, liveMatches, rawKnockoutEvents);
-  }, [bracket, knockoutLiveInfo, liveMatches, rawKnockoutEvents]);
+    return buildEnrichedBracket(bracket, knockoutLiveInfo, liveMatches, rawKnockoutEvents, espnBracketTeams);
+  }, [bracket, knockoutLiveInfo, liveMatches, rawKnockoutEvents, espnBracketTeams]);
 
   if (!bracket || !data) {
     return (

@@ -116,4 +116,5 @@ export interface RawKnockoutEvent {
   time?: string;
   venue?: string;
   city?: string;
+  altGameNote?: string;
 }

@@ -61,10 +61,58 @@ export default function Calendar() {
       });
     }
 
-    // 2) Bracket knockout matches (resolved)
+    // 2) Raw ESPN knockout events (PRIMARY source — real confirmed matchups)
+    const espnKOPairs = new Set<string>();
+    for (const evt of rawKnockoutEvents) {
+      const homeId = ESPN_TO_TEAM[evt.homeAbbr];
+      const awayId = ESPN_TO_TEAM[evt.awayAbbr];
+      // Skip future rounds with placeholder names like "Round of 32 5 Winner"
+      if (evt.homeName.includes('Winner') || evt.awayName.includes('Winner')) continue;
+      const status = evt.statusName === 'STATUS_FULL_TIME' ? 'finished'
+        : evt.statusName === 'STATUS_FINAL_PEN' ? 'finished'
+        : ['STATUS_IN_PROGRESS','STATUS_HALFTIME','STATUS_1ST_PERIOD','STATUS_2ND_PERIOD','STATUS_EXTRA_TIME','STATUS_PENALTY_SHOOTOUT'].includes(evt.statusName)
+          ? 'live' as const : 'upcoming' as const;
+      const hasScore = status !== 'upcoming';
+      const evtTime = evt.time || '12:00';
+      // Determine round label from ESPN altGameNote
+      const note = evt.altGameNote || '';
+      let roundLabel = 'Mata-mata';
+      if (note.includes('Round of 32')) roundLabel = '32 Avos';
+      else if (note.includes('Round of 16')) roundLabel = 'Oitavas';
+      else if (note.includes('Quarterfinal')) roundLabel = 'Quartas';
+      else if (note.includes('Semifinal')) roundLabel = 'Semifinal';
+      else if (note.includes('Third Place') || note.includes('3rd')) roundLabel = '3\u00B0 Lugar';
+      else if (note.includes('Final')) roundLabel = 'Final';
+
+      list.push({
+        id: `espn-ko-${evt.homeAbbr}-${evt.awayAbbr}`,
+        homeTeam: homeId ?? null, awayTeam: awayId ?? null,
+        homeLabel: evt.homeName, awayLabel: evt.awayName,
+        date: evt.date || '', time: evtTime,
+        venue: evt.venue || '', city: evt.city || '', country: '',
+        group: '', round: 4,
+        homeScore: hasScore ? (parseInt(evt.homeScore, 10) || 0) : null,
+        awayScore: hasScore ? (parseInt(evt.awayScore, 10) || 0) : null,
+        status,
+        liveMinute: status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined,
+        roundLabel,
+      });
+
+      // Track pairs to avoid duplicate bracket entries
+      if (homeId && awayId) {
+        espnKOPairs.add([homeId, awayId].sort().join(':'));
+      }
+    }
+
+    // 3) Bracket knockout matches (SUPPLEMENT — only for slots not covered by ESPN)
     if (bracket) {
       const koMatches = [...bracket.r32, ...bracket.r16, ...bracket.qf, ...bracket.sf, bracket.thirdPlace, bracket.final];
       for (const m of koMatches) {
+        // Skip if ESPN already has this team pair
+        if (m.homeTeam && m.awayTeam) {
+          const key = [m.homeTeam, m.awayTeam].sort().join(':');
+          if (espnKOPairs.has(key)) continue;
+        }
         const koInfo = knockoutLiveInfo[m.id];
         const hasResult = m.homeScore !== null && m.awayScore !== null;
         const status = koInfo?.status ?? (hasResult ? 'finished' : 'upcoming');
@@ -82,36 +130,6 @@ export default function Calendar() {
           roundLabel: ROUND_LABELS[m.round] || m.round,
         });
       }
-    }
-
-    // 3) Raw ESPN knockout fallback (for unmatched events)
-    for (const evt of rawKnockoutEvents) {
-      const homeId = ESPN_TO_TEAM[evt.homeAbbr];
-      const awayId = ESPN_TO_TEAM[evt.awayAbbr];
-      // Skip if already in bracket (check both orders)
-      if (homeId && awayId && list.some(m =>
-        (m.homeTeam === homeId && m.awayTeam === awayId) ||
-        (m.homeTeam === awayId && m.awayTeam === homeId)
-      )) continue;
-      const status = evt.statusName === 'STATUS_FULL_TIME' ? 'finished'
-        : ['STATUS_IN_PROGRESS','STATUS_HALFTIME','STATUS_1ST_PERIOD','STATUS_2ND_PERIOD','STATUS_EXTRA_TIME','STATUS_PENALTY_SHOOTOUT'].includes(evt.statusName)
-          ? 'live' as const : 'upcoming' as const;
-      const hasScore = status !== 'upcoming';
-      // Fallback: if ESPN has no time, use '12:00' so the match still appears in calendar
-      const evtTime = evt.time || '12:00';
-      list.push({
-        id: `espn-ko-${evt.homeAbbr}-${evt.awayAbbr}`,
-        homeTeam: homeId ?? null, awayTeam: awayId ?? null,
-        homeLabel: evt.homeName, awayLabel: evt.awayName,
-        date: evt.date || '', time: evtTime,
-        venue: evt.venue || '', city: evt.city || '', country: '',
-        group: '', round: 4,
-        homeScore: hasScore ? (parseInt(evt.homeScore, 10) || 0) : null,
-        awayScore: hasScore ? (parseInt(evt.awayScore, 10) || 0) : null,
-        status,
-        liveMinute: status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined,
-        roundLabel: 'Mata-mata',
-      });
     }
 
     return list;

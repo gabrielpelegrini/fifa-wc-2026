@@ -172,6 +172,7 @@ export async function GET(request: Request) {
             time: event.date ? event.date.slice(11, 16) : undefined,
             venue: comp.venue?.fullName,
             city: comp.venue?.address?.city,
+            altGameNote: comp.altGameNote,
           });
         }
         continue;

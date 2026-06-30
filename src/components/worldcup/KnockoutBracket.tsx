@@ -42,11 +42,11 @@ const SUB_TABS = [
 ] as const;
 
 export default function KnockoutBracket() {
-  const { bracket, knockoutResults, knockoutLiveInfo, liveMatches } = useWorldCupStore();
+  const { bracket, knockoutResults, knockoutLiveInfo, liveMatches, espnBracketTeams } = useWorldCupStore();
   const [subTab, setSubTab] = useState<string>('bracket');
 
   // Enrich matches with live info
-  const enrichedBracket = bracket ? enrichBracket(bracket, knockoutLiveInfo, liveMatches) : null;
+  const enrichedBracket = bracket ? enrichBracket(bracket, knockoutLiveInfo, liveMatches, espnBracketTeams) : null;
   const hasKnockoutResults = knockoutResults.size > 0;
 
   if (!bracket) {
@@ -125,16 +125,21 @@ export default function KnockoutBracket() {
 function enrichBracket(
   bracket: NonNullable<ReturnType<typeof useWorldCupStore.getState>['bracket']>,
   knockoutLiveInfo: Record<string, { status: string; homeScore: number | null; awayScore: number | null; minute?: number; displayClock?: string }>,
-  liveMatches: Record<string, number>
+  liveMatches: Record<string, number>,
+  espnTeams: Record<string, { homeTeam: string; awayTeam: string }>
 ): { r32: BracketMatchInfo[]; r16: BracketMatchInfo[]; qf: BracketMatchInfo[]; sf: BracketMatchInfo[]; thirdPlace: BracketMatchInfo; final: BracketMatchInfo } {
   function enrich(m: typeof bracket.r32[0]): BracketMatchInfo {
     const live = knockoutLiveInfo[m.id];
     const hasLive = live && (live.status === 'live' || live.status === 'finished');
+    // Use ESPN-confirmed teams when available, otherwise fall back to bracket resolver
+    const confirmed = espnTeams[m.id];
+    const homeTeam = confirmed ? confirmed.homeTeam : m.homeTeam;
+    const awayTeam = confirmed ? confirmed.awayTeam : m.awayTeam;
     return {
       id: m.id,
       round: m.round,
-      homeTeam: m.homeTeam,
-      awayTeam: m.awayTeam,
+      homeTeam,
+      awayTeam,
       homeSlot: m.homeSlot,
       awaySlot: m.awaySlot,
       homeScore: hasLive ? (live.homeScore ?? m.homeScore) : m.homeScore,

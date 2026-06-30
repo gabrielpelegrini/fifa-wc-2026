@@ -105,61 +105,21 @@ export function FavoritesPanel({
 
 // ── Top Scorers (Artilharia) ───────────────────────────────────────
 
-interface Scorer {
-  teamId: string;
-  name: string;
-  goals: number;
-  assists: number;
-}
-
-// Mock data — will be replaced with ESPN data when available
-const MOCK_SCORERS: Scorer[] = [
-  { teamId: 'france', name: 'Mbappé', goals: 8, assists: 3 },
-  { teamId: 'argentina', name: 'Messi', goals: 6, assists: 5 },
-  { teamId: 'england', name: 'Kane', goals: 6, assists: 2 },
-  { teamId: 'brazil', name: 'Vinícius Jr.', goals: 5, assists: 4 },
-  { teamId: 'portugal', name: 'Bruno Fernandes', goals: 4, assists: 4 },
-  { teamId: 'germany', name: 'Wirtz', goals: 4, assists: 3 },
-  { teamId: 'spain', name: 'Yamal', goals: 4, assists: 2 },
-  { teamId: 'japan', name: 'Kaoru Mitoma', goals: 3, assists: 2 },
-];
-
 export function TopScorersPanel() {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="bg-fifa-gold/10 px-3 py-2 flex items-center gap-1.5">
         <Trophy className="h-3.5 w-3.5 text-fifa-gold" />
         <span className="text-xs font-bold uppercase tracking-wider">Artilharia</span>
-        <span className="text-[11px] text-muted-foreground ml-auto">G · A</span>
       </div>
-      <div className="divide-y">
-        {MOCK_SCORERS.map((scorer, i) => (
-          <div
-            key={scorer.name}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2',
-              i === 0 && 'bg-fifa-gold/5'
-            )}
-          >
-            <span className={cn(
-              'text-[11px] font-bold w-4 text-center',
-              i === 0 ? 'text-fifa-gold' : i === 1 ? 'text-fifa-gold/70' : i === 2 ? 'text-fifa-gold/50' : 'text-muted-foreground/50'
-            )}>
-              {i + 1}
-            </span>
-            <FlagIcon teamId={scorer.teamId} size={18} />
-            <div className="flex-1 min-w-0">
-              <span className={cn('text-xs font-medium', i === 0 && 'text-fifa-gold-dark dark:text-fifa-gold')}>
-                {scorer.name}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 tabular-nums">
-              <span className="text-xs font-bold">{scorer.goals}</span>
-              <span className="text-[11px] text-muted-foreground">·</span>
-              <span className="text-[11px] text-muted-foreground">{scorer.assists}</span>
-            </div>
-          </div>
-        ))}
+      <div className="px-3 py-6 text-center">
+        <Trophy className="h-8 w-8 text-fifa-gold/30 mx-auto mb-2" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Dados de artilharia nao disponiveis no momento.
+        </p>
+        <p className="text-[11px] text-muted-foreground/60 mt-1">
+          A artilharia sera atualizada automaticamente quando a ESPN disponibilizar os dados.
+        </p>
       </div>
     </div>
   );

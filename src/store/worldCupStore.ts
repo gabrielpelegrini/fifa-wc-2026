@@ -6,6 +6,7 @@ import { calculateThirdPlaceRanking } from '@/lib/thirdPlaceRanking';
 import { resolveBracket } from '@/lib/bracketResolver';
 import { ESPN_TO_TEAM } from '@/lib/espnMapping';
 import { classifyESPNStatus } from '@/lib/espnStatus';
+import { THIRD_PLACE_POOLS } from '@/data/worldcup';
 
 interface KnockoutResult {
   home: number;
@@ -41,6 +42,7 @@ interface WorldCupState {
   liveMatches: Record<string, number>;
   knockoutLiveInfo: Record<string, KnockoutLiveEntry>;
   rawKnockoutEvents: RawKnockoutEvent[];
+  espnBracketTeams: Record<string, { homeTeam: string; awayTeam: string }>;
   isRefreshing: boolean;
   lastError: string | null;
 
@@ -75,6 +77,38 @@ function computeAll(matches: MatchDef[], knockoutResults: Map<string, KnockoutRe
   return { allStandings, thirdPlaceRanking, bracket };
 }
 
+/** Get all possible team IDs that could fill a bracket slot */
+function getPossibleTeams(
+  slot: string,
+  allStandings: Map<string, TeamStanding[]>
+): Set<string> {
+  const m1 = slot.match(/^1([A-L])$/);
+  if (m1) {
+    const sts = allStandings.get(m1[1]);
+    return sts ? new Set(sts.map(s => s.teamId)) : new Set();
+  }
+  const m2 = slot.match(/^2([A-L])$/);
+  if (m2) {
+    const sts = allStandings.get(m2[1]);
+    return sts ? new Set(sts.map(s => s.teamId)) : new Set();
+  }
+  const m3 = slot.match(/^3_([A-L]+)$/);
+  if (m3) {
+    const pool = THIRD_PLACE_POOLS[slot as keyof typeof THIRD_PLACE_POOLS];
+    if (!pool) return new Set();
+    const teams = new Set<string>();
+    for (const g of pool.groups) {
+      const sts = allStandings.get(g);
+      if (sts) {
+        const third = sts.find(s => s.position === 3);
+        if (third) teams.add(third.teamId);
+      }
+    }
+    return teams;
+  }
+  return new Set();
+}
+
 export const useWorldCupStore = create<WorldCupState>((set, get) => {
   const initialMatches = deepCloneMatches();
   const initialKR = new Map<string, KnockoutResult>();
@@ -97,6 +131,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     liveMatches: {},
     knockoutLiveInfo: {},
     rawKnockoutEvents: [],
+    espnBracketTeams: {},
     isRefreshing: false,
     lastError: null,
 
@@ -206,6 +241,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         awaySlot: string;
         homeTeam: string | null;
         awayTeam: string | null;
+        date: string;
       };
 
       const allEntries: BracketEntry[] = [];
@@ -312,12 +348,129 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         }
       }
 
+      // ── Date-based fallback matching for unmatched events ──
+      // Build a date-indexed list of bracket entries that weren't matched above
+      const matchedIds = new Set(Object.keys(newInfo));
+      const usedIds = new Set<string>();
+      const dateToUnmatched = new Map<string, Array<{ id: string; homeSlot: string; awaySlot: string; homeTeam: string | null; awayTeam: string | null; date: string }>>();
+      for (const entry of allEntries) {
+        if (matchedIds.has(entry.id)) continue;
+        if (!entry.date) continue;
+        const arr = dateToUnmatched.get(entry.date) || [];
+        arr.push(entry);
+        dateToUnmatched.set(entry.date, arr);
+      }
+
+      // Helper: try to match an ESPN event to an unmatched bracket entry
+      function tryDateMatch(evtDate: string, homeId: string, awayId: string) {
+        const candidates = dateToUnmatched.get(evtDate);
+        if (!candidates) return;
+        for (const entry of candidates) {
+          if (usedIds.has(entry.id)) continue;
+          const homePossible = getPossibleTeams(entry.homeSlot, allStandings);
+          const awayPossible = getPossibleTeams(entry.awaySlot, allStandings);
+          const homeFits = homeId === entry.homeTeam || homeId === entry.awayTeam ||
+            (entry.homeTeam === null && homePossible.has(homeId));
+          const awayFits = awayId === entry.homeTeam || awayId === entry.awayTeam ||
+            (entry.awayTeam === null && awayPossible.has(awayId));
+          if ((homeFits && awayFits) || (homeFits && awayId === entry.awayTeam) || (awayFits && homeId === entry.homeTeam)) {
+            return entry;
+          }
+        }
+        return undefined;
+      }
+
+      // For each unmatched ESPN event, try to match by date (±1 day)
+      const espnBracketTeams: Record<string, { homeTeam: string; awayTeam: string }> = { ...get().espnBracketTeams };
+      for (const evt of events) {
+        const homeId = ESPN_TO_TEAM[evt.homeAbbr];
+        const awayId = ESPN_TO_TEAM[evt.awayAbbr];
+        if (!homeId || !awayId) continue;
+        const evtDate = evt.date;
+        if (!evtDate) continue;
+
+        // Skip if this team pair was already matched
+        const pairKey = [homeId, awayId].sort().join(':');
+        let alreadyMatched = false;
+        for (const [, teams] of Object.entries(espnBracketTeams)) {
+          if ([teams.homeTeam, teams.awayTeam].sort().join(':') === pairKey) {
+            alreadyMatched = true;
+            break;
+          }
+        }
+        if (alreadyMatched) continue;
+
+        // Try exact date, then ±1 day
+        const d = new Date(evtDate + 'T12:00:00Z');
+        const dates = [
+          evtDate,
+          new Date(d.getTime() - 86400000).toISOString().slice(0, 10),
+          new Date(d.getTime() + 86400000).toISOString().slice(0, 10),
+        ];
+
+        let matchedEntry: typeof allEntries[0] | undefined;
+        for (const tryDate of dates) {
+          matchedEntry = tryDateMatch(tryDate, homeId, awayId);
+          if (matchedEntry) break;
+        }
+        if (!matchedEntry) continue;
+
+        usedIds.add(matchedEntry.id);
+        let confirmedHome = homeId;
+        let confirmedAway = awayId;
+        if (matchedEntry.homeTeam && matchedEntry.awayTeam) {
+          if (matchedEntry.homeTeam === awayId && matchedEntry.awayTeam === homeId) {
+            confirmedHome = awayId;
+            confirmedAway = homeId;
+          }
+        }
+        espnBracketTeams[matchedEntry.id] = { homeTeam: confirmedHome, awayTeam: confirmedAway };
+        if (!newInfo[matchedEntry.id]) {
+          const status = classifyESPNStatus(evt.statusName);
+          const isLiveOrFinished = status === 'live' || status === 'finished';
+          const pH = parseInt(evt.homeScore, 10);
+          const pA = parseInt(evt.awayScore, 10);
+          newInfo[matchedEntry.id] = {
+            status,
+            homeScore: isLiveOrFinished && !isNaN(pH) ? pH : null,
+            awayScore: isLiveOrFinished && !isNaN(pA) ? pA : null,
+            minute: status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined,
+            displayClock: evt.displayClock,
+          };
+          if (status === 'finished' && !isNaN(pH) && !isNaN(pA)) {
+            const isRev = matchedEntry.homeTeam === awayId;
+            let penH: number | undefined, penA: number | undefined;
+            if (evt.shortDetail) {
+              const pk = evt.shortDetail.match(/PK\s+(\d+)\s*[-–]\s*(\d+)/i);
+              if (pk) {
+                penH = isRev ? parseInt(pk[2], 10) : parseInt(pk[1], 10);
+                penA = isRev ? parseInt(pk[1], 10) : parseInt(pk[2], 10);
+              }
+            }
+            finishedKO.push({
+              id: matchedEntry.id,
+              home: isRev ? pA : pH,
+              away: isRev ? pH : pA,
+              penaltyHome: penH, penaltyAway: penA,
+            });
+          }
+        }
+      }
+
+      // Also store confirmed teams for entries matched in the main loop
+      for (const entry of allEntries) {
+        if (matchedIds.has(entry.id) && entry.homeTeam && entry.awayTeam) {
+          espnBracketTeams[entry.id] = { homeTeam: entry.homeTeam, awayTeam: entry.awayTeam };
+        }
+      }
+
       // Single atomic set() — no intermediate render state
       const update: Record<string, unknown> = {
         knockoutLiveInfo: newInfo,
         liveMatches: { ...get().liveMatches, ...newKnockoutLive },
         rawKnockoutEvents: events, // Store raw ESPN data for LiveTab fallback display
         bracket: freshBracket, // Use the fresh bracket we computed above
+        espnBracketTeams,
       };
 
       // Auto-update knockout bracket with finished results so winners advance
