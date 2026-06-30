@@ -94,7 +94,7 @@ async function fetchESPNDate(dateStr: string): Promise<ESPNEvent[]> {
 // ── Classify ESPN status ───────────────────────────────────────────────
 
 function classifyStatus(statusName: string): 'upcoming' | 'live' | 'finished' {
-  if (statusName === 'STATUS_FULL_TIME' || statusName === 'STATUS_POSTPONED') return 'finished';
+  if (statusName === 'STATUS_FULL_TIME') return 'finished';
   if (
     statusName === 'STATUS_IN_PROGRESS' ||
     statusName === 'STATUS_HALFTIME' ||

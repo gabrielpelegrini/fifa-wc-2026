@@ -86,7 +86,7 @@ function BracketRound({
   const spacing = matches.length <= 2 ? 'gap-16' : matches.length <= 4 ? 'gap-8' : matches.length <= 8 ? 'gap-4' : 'gap-1';
   return (
     <div className={cn('w-[220px]', className)}>
-      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 text-center">{title}</h3>
+      <h3 className="text-xs font-bold text-fifa-green uppercase tracking-wider mb-2 text-center">{title}</h3>
       <div className={cn('flex flex-col justify-around h-full', spacing)}>
         {matches.map(m => (
           <BracketMatchCard key={m.id} match={m} />
@@ -123,10 +123,9 @@ function BracketMatchCard({
   const hasTeams = match.homeTeam !== null && match.awayTeam !== null;
 
   return (
-    <div
-      className={cn(
-        'w-full rounded-md border',
-        hasScore ? 'bg-card border-border/50' : 'bg-card border-border',
+    <div className={cn(
+        'w-full rounded-md border transition-colors',
+        hasScore ? 'bg-card border-fifa-green/30' : 'bg-card border-border',
         compact ? 'p-1.5' : 'p-2',
         !hasTeams && 'opacity-50'
       )}
@@ -172,7 +171,7 @@ function BracketListView({
     <div className="space-y-4">
       {rounds.map(round => (
         <div key={round.title} className="rounded-lg border bg-card overflow-hidden">
-          <div className="bg-primary/10 px-3 py-1.5">
+          <div className="bg-fifa-green/10 px-3 py-1.5">
             <span className="font-bold text-xs">{round.title}</span>
             <span className="text-xs text-muted-foreground ml-2">({round.matches.length} jogos)</span>
           </div>

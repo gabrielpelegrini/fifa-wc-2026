@@ -25,8 +25,13 @@ export default function Home() {
         {activeTab === 'bracket' && <KnockoutBracket />}
         {activeTab === 'crossover' && <CrossoverPredictor />}
       </main>
-      <footer className="border-t py-3 text-center text-xs text-muted-foreground">
-        <p>Copa do Mundo FIFA 2026 · Dados atualizados automaticamente a cada 5 minutos</p>
+      <footer className="border-t border-fifa-green/10 py-3 text-center text-xs text-muted-foreground">
+        <p className="flex items-center justify-center gap-1.5">
+          <span className="text-fifa-green font-bold">FIFA</span>
+          <span>Copa do Mundo 2026</span>
+          <span className="text-fifa-gold">·</span>
+          <span>Dados via ESPN · Atualização automática</span>
+        </p>
       </footer>
     </div>
   );

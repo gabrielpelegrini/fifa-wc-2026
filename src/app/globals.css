@@ -41,75 +41,95 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* FIFA WC 2026 custom tokens */
+  --color-fifa-green: var(--fifa-green);
+  --color-fifa-gold: var(--fifa-gold);
+  --color-fifa-blue: var(--fifa-blue);
+  --color-fifa-green-dark: var(--fifa-green-dark);
+  --color-fifa-gold-dark: var(--fifa-gold-dark);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* FIFA WC 2026 palette — light mode */
+  --fifa-green: oklch(0.55 0.15 155);         /* Pitch green */
+  --fifa-green-dark: oklch(0.38 0.12 155);
+  --fifa-gold: oklch(0.78 0.14 85);           /* Trophy gold */
+  --fifa-gold-dark: oklch(0.65 0.12 85);
+  --fifa-blue: oklch(0.40 0.12 250);          /* Corporate blue */
+
+  --background: oklch(0.985 0.005 250);        /* Very subtle blue tint */
+  --foreground: oklch(0.145 0.01 250);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.145 0.01 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.145 0.01 250);
+  --primary: oklch(0.45 0.14 155);             /* Green — FIFA pitch */
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.95 0.02 85);            /* Gold tint */
+  --secondary-foreground: oklch(0.25 0.04 85);
+  --muted: oklch(0.96 0.005 250);
+  --muted-foreground: oklch(0.50 0.02 250);
+  --accent: oklch(0.93 0.03 85);               /* Light gold accent */
+  --accent-foreground: oklch(0.25 0.04 85);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --border: oklch(0.90 0.01 250);
+  --input: oklch(0.90 0.01 250);
+  --ring: oklch(0.55 0.14 155);                /* Green ring */
+  --chart-1: oklch(0.55 0.15 155);             /* Green */
+  --chart-2: oklch(0.78 0.14 85);              /* Gold */
+  --chart-3: oklch(0.50 0.12 250);             /* Blue */
+  --chart-4: oklch(0.65 0.20 25);              /* Red-orange */
+  --chart-5: oklch(0.60 0.15 310);             /* Purple */
+  --sidebar: oklch(0.985 0.005 250);
+  --sidebar-foreground: oklch(0.145 0.01 250);
+  --sidebar-primary: oklch(0.45 0.14 155);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.93 0.03 85);
+  --sidebar-accent-foreground: oklch(0.25 0.04 85);
+  --sidebar-border: oklch(0.90 0.01 250);
+  --sidebar-ring: oklch(0.55 0.14 155);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  /* FIFA WC 2026 palette — dark mode */
+  --fifa-green: oklch(0.60 0.15 155);
+  --fifa-green-dark: oklch(0.40 0.10 155);
+  --fifa-gold: oklch(0.82 0.14 85);
+  --fifa-gold-dark: oklch(0.68 0.12 85);
+  --fifa-blue: oklch(0.50 0.12 250);
+
+  --background: oklch(0.13 0.01 250);          /* Deep navy-black */
+  --foreground: oklch(0.95 0.005 250);
+  --card: oklch(0.18 0.015 250);               /* Slightly lighter navy */
+  --card-foreground: oklch(0.95 0.005 250);
+  --popover: oklch(0.18 0.015 250);
+  --popover-foreground: oklch(0.95 0.005 250);
+  --primary: oklch(0.72 0.15 155);             /* Bright green */
+  --primary-foreground: oklch(0.13 0.01 250);
+  --secondary: oklch(0.22 0.03 85);            /* Dark gold tint */
+  --secondary-foreground: oklch(0.85 0.08 85);
+  --muted: oklch(0.22 0.01 250);
+  --muted-foreground: oklch(0.65 0.02 250);
+  --accent: oklch(0.25 0.04 85);               /* Gold accent on dark */
+  --accent-foreground: oklch(0.85 0.08 85);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: oklch(0.28 0.02 250);
+  --input: oklch(0.28 0.02 250);
+  --ring: oklch(0.72 0.15 155);
+  --chart-1: oklch(0.60 0.15 155);
+  --chart-2: oklch(0.82 0.14 85);
+  --chart-3: oklch(0.55 0.12 250);
+  --chart-4: oklch(0.65 0.20 25);
+  --chart-5: oklch(0.60 0.15 310);
+  --sidebar: oklch(0.16 0.01 250);
+  --sidebar-foreground: oklch(0.95 0.005 250);
+  --sidebar-primary: oklch(0.72 0.15 155);
+  --sidebar-primary-foreground: oklch(0.13 0.01 250);
+  --sidebar-accent: oklch(0.25 0.04 85);
+  --sidebar-accent-foreground: oklch(0.85 0.08 85);
+  --sidebar-border: oklch(0.28 0.02 250);
+  --sidebar-ring: oklch(0.72 0.15 155);
 }
 
 @layer base {
@@ -119,4 +139,24 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Score pulse animation for live matches */
+@keyframes score-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.score-update {
+  animation: score-pulse 0.4s ease-out;
+}
+
+/* Live glow effect */
+@keyframes live-glow {
+  0%, 100% { box-shadow: 0 0 4px oklch(0.55 0.2 25 / 0.3); }
+  50% { box-shadow: 0 0 12px oklch(0.55 0.2 25 / 0.6); }
+}
+
+.live-glow {
+  animation: live-glow 2s ease-in-out infinite;
 }

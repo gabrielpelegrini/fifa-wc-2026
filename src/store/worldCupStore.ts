@@ -175,7 +175,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           ...(s.espnCity && { city: s.espnCity }),
         };
       });
-      const newLiveMatches: Record<string, number> = {};
+      const newLiveMatches: Record<string, number> = { ...get().liveMatches }; // preserve existing (e.g. knockout)
       for (const [id, s] of Object.entries(scores)) {
         if (s.status === 'live' && s.minute != null) {
           newLiveMatches[id] = s.minute;
@@ -265,7 +265,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
 
         // Classify status
         let status: 'upcoming' | 'live' | 'finished' = 'upcoming';
-        if (evt.statusName === 'STATUS_FULL_TIME' || evt.statusName === 'STATUS_POSTPONED') status = 'finished';
+        if (evt.statusName === 'STATUS_FULL_TIME') status = 'finished';
         else if (
           evt.statusName === 'STATUS_IN_PROGRESS' ||
           evt.statusName === 'STATUS_HALFTIME' ||
@@ -311,10 +311,11 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         }
       }
 
-      set({
+      // Single atomic set() — no intermediate render state
+      const update: Record<string, unknown> = {
         knockoutLiveInfo: newInfo,
         liveMatches: { ...get().liveMatches, ...newKnockoutLive },
-      });
+      };
 
       // Auto-update knockout bracket with finished results so winners advance
       if (finishedKO.length > 0) {
@@ -323,15 +324,17 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           newKR.set(r.id, { home: r.home, away: r.away });
         }
         const computed = computeAll(get().matches, newKR);
-        set({ knockoutResults: newKR, ...computed });
+        Object.assign(update, { knockoutResults: newKR, ...computed });
       }
+
+      set(update);
     },
 
     refreshNow: async () => {
       set({ isRefreshing: true });
       try {
         // Bypass server cache with _refresh parameter
-        const url = `/api/live-scores?XTransformPort=3000&_refresh=${Date.now()}`;
+        const url = `/api/live-scores?_refresh=${Date.now()}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();

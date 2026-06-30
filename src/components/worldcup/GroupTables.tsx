@@ -5,19 +5,29 @@ import { getTeamName, isPlaceholder } from '@/lib/standings';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
 import { TEAMS } from '@/data/worldcup';
+import { useFavorites, ShareButton, TopScorersPanel, FavoritesPanel } from './Engagement';
 
 export default function GroupTables() {
   const { allStandings, thirdPlaceRanking } = useWorldCupStore();
+  const { favorites, isFavorite, toggle, loaded } = useFavorites();
 
   return (
     <div className="space-y-6">
+      {/* Engagement panels */}
+      {loaded && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FavoritesPanel favorites={favorites} isFavorite={isFavorite} onToggle={toggle} />
+          <TopScorersPanel />
+        </div>
+      )}
+
       {['A','B','C','D','E','F','G','H','I','J','K','L'].map(groupId => {
         const standings = allStandings.get(groupId);
         if (!standings) return null;
 
         return (
           <div key={groupId} className="rounded-lg border bg-card overflow-hidden">
-            <div className="bg-primary/10 px-4 py-2 flex items-center justify-between">
+            <div className="bg-fifa-green/10 px-4 py-2 flex items-center justify-between">
               <span className="font-bold text-sm">Grupo {groupId}</span>
               <span className="text-xs text-muted-foreground">
                 {TEAMS[standings[0]?.teamId] && !TEAMS[standings[0].teamId]?.isPlaceholder
@@ -40,6 +50,7 @@ export default function GroupTables() {
                     <th className="text-center py-2 px-1 w-8">GC</th>
                     <th className="text-center py-2 px-1 w-8">SG</th>
                     <th className="text-center py-2 px-1 w-10 font-bold">Pts</th>
+                    {loaded && <th className="w-8" />}
                   </tr>
                 </thead>
                 <tbody>
@@ -47,6 +58,7 @@ export default function GroupTables() {
                     const qualified = s.position <= 2;
                     const possibleThird = s.position === 3;
                     const ph = isPlaceholder(s.teamId);
+                    const fav = isFavorite(s.teamId);
 
                     return (
                       <tr
@@ -55,14 +67,15 @@ export default function GroupTables() {
                           'border-b last:border-0 transition-colors',
                           qualified && 'bg-green-500/10 dark:bg-green-500/5',
                           possibleThird && 'bg-yellow-500/10 dark:bg-yellow-500/5',
-                          ph && 'opacity-60'
+                          ph && 'opacity-60',
+                          fav && 'bg-fifa-gold/5'
                         )}
                       >
                         <td className="py-2 px-2 text-center">
                           <span className={cn(
                             'inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold',
-                            qualified && 'bg-green-500 text-white',
-                            possibleThird && 'bg-yellow-500/80 text-white',
+                            qualified && 'bg-fifa-green text-primary-foreground',
+                            possibleThird && 'bg-fifa-gold/80 text-white',
                             !qualified && !possibleThird && 'bg-muted text-muted-foreground'
                           )}>
                             {s.position}
@@ -73,8 +86,8 @@ export default function GroupTables() {
                             <FlagIcon teamId={s.teamId} size={20} />
                             <span className="font-medium">{getTeamName(s.teamId)}</span>
                             {qualified && (
-                              <span className="text-[9px] text-green-600 dark:text-green-400 hidden sm:inline">
-                                {s.position === 1 ? '→ R32' : '→ R32'}
+                              <span className="text-[9px] text-fifa-green dark:text-fifa-green hidden sm:inline">
+                                R32
                               </span>
                             )}
                           </div>
@@ -87,6 +100,25 @@ export default function GroupTables() {
                         <td className="text-center py-2 px-1">{s.goalsAgainst}</td>
                         <td className="text-center py-2 px-1">{s.goalDiff > 0 ? '+' : ''}{s.goalDiff}</td>
                         <td className="text-center py-2 px-1 font-bold">{s.points}</td>
+                        {loaded && (
+                          <td className="py-2 px-1">
+                            <button
+                              onClick={() => toggle(s.teamId)}
+                              className="p-0.5 hover:scale-125 transition-transform"
+                              aria-label={fav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                            >
+                              <svg
+                                className={cn('h-3.5 w-3.5 transition-colors', fav ? 'text-fifa-gold fill-fifa-gold' : 'text-muted-foreground/30 hover:text-fifa-gold/50')}
+                                viewBox="0 0 24 24"
+                                fill={fav ? 'currentColor' : 'none'}
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                              </svg>
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -106,7 +138,7 @@ export default function GroupTables() {
 function ThirdPlaceSection({ thirds }: { thirds: ReturnType<typeof useWorldCupStore.getState>['thirdPlaceRanking'] }) {
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="bg-yellow-500/10 px-4 py-2">
+      <div className="bg-fifa-gold/10 px-4 py-2">
         <span className="font-bold text-sm">Ranking dos Terceiros Colocados</span>
         <span className="text-xs text-muted-foreground ml-2">(8 melhores classificam)</span>
       </div>
@@ -129,13 +161,13 @@ function ThirdPlaceSection({ thirds }: { thirds: ReturnType<typeof useWorldCupSt
                 key={t.teamId}
                 className={cn(
                   'border-b last:border-0',
-                  t.qualified && 'bg-green-500/10 dark:bg-green-500/5'
+                  t.qualified && 'bg-fifa-green/10 dark:bg-fifa-green/5'
                 )}
               >
                 <td className="py-2 px-2 text-center">
                   <span className={cn(
                     'inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold',
-                    t.qualified ? 'bg-green-500 text-white' : 'bg-muted text-muted-foreground'
+                    t.qualified ? 'bg-fifa-green text-primary-foreground' : 'bg-muted text-muted-foreground'
                   )}>
                     {t.rank}
                   </span>
@@ -152,7 +184,7 @@ function ThirdPlaceSection({ thirds }: { thirds: ReturnType<typeof useWorldCupSt
                 <td className="text-center py-2 px-1">{t.goalsFor}</td>
                 <td className="text-center py-2 px-1">
                   {t.qualified ? (
-                    <span className="text-green-600 dark:text-green-400 text-[10px] font-semibold">CLASSIFICADO</span>
+                    <span className="text-fifa-green text-[10px] font-semibold">CLASSIFICADO</span>
                   ) : (
                     <span className="text-muted-foreground text-[10px]">Eliminado</span>
                   )}

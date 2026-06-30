@@ -178,7 +178,7 @@ export const GROUP_MATCHES = [
   gm('G_B2_1', 'B', 2, 0, 2, '2026-06-18', '22:00', 'bcplace'),       // CAN vs QAT
   gm('G_B2_2', 'B', 2, 1, 3, '2026-06-18', '19:00', 'sofi'),          // BIH vs SUI
   gm('G_C2_1', 'C', 2, 0, 2, '2026-06-19', '22:00', 'gillette'),      // BRA vs SCO
-  gm('G_C2_2', 'C', 2, 1, 3, '2026-06-24', '22:00', 'hardrock'),      // MAR vs HAI
+  gm('G_C2_2', 'C', 2, 1, 3, '2026-06-20', '22:00', 'hardrock'),      // MAR vs HAI
   gm('G_D2_1', 'D', 2, 0, 2, '2026-06-19', '19:00', 'lumen'),         // USA vs AUS
   gm('G_D2_2', 'D', 2, 1, 3, '2026-06-20', '03:00', 'levis'),         // PAR vs TUR
 
@@ -206,7 +206,7 @@ export const GROUP_MATCHES = [
   gm('G_A3_2', 'A', 3, 1, 2, '2026-06-25', '01:00', 'arrowhead'),     // RSA vs KOR
   gm('G_B3_1', 'B', 3, 0, 3, '2026-06-24', '19:00', 'lumen'),         // CAN vs SUI
   gm('G_B3_2', 'B', 3, 1, 2, '2026-06-24', '19:00', 'sofi'),          // BIH vs QAT
-  gm('G_C3_1', 'C', 3, 0, 3, '2026-06-20', '00:30', 'lincoln'),       // BRA vs HAI
+  gm('G_C3_1', 'C', 3, 0, 3, '2026-06-25', '22:00', 'lincoln'),       // BRA vs HAI
   gm('G_C3_2', 'C', 3, 1, 2, '2026-06-24', '22:00', 'hardrock'),      // MAR vs SCO
   gm('G_D3_1', 'D', 3, 0, 3, '2026-06-26', '02:00', 'sofi'),          // USA vs TUR
   gm('G_D3_2', 'D', 3, 1, 2, '2026-06-26', '02:00', 'metlife'),       // PAR vs AUS

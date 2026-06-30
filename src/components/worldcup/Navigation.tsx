@@ -22,21 +22,27 @@ export default function Navigation() {
   const liveCount = Object.keys(liveMatches).length;
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports:[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 border-b border-fifa-green/20 bg-gradient-to-r from-fifa-green-dark via-background to-background dark:from-fifa-green-dark/40 dark:via-background dark:to-background backdrop-blur supports:[backdrop-filter]:bg-background/80">
       <div className="mx-auto max-w-7xl px-2 sm:px-4">
         {/* Top bar */}
         <div className="flex h-14 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">⚽</span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fifa-green text-primary-foreground">
+              <span className="text-base font-black leading-none">WC</span>
+            </div>
             <div>
-              <h1 className="text-sm sm:text-base font-bold leading-tight">Copa do Mundo FIFA 2026</h1>
-              <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">Canadá · México · EUA</p>
+              <h1 className="text-sm sm:text-base font-bold leading-tight tracking-tight">
+                Copa do Mundo <span className="text-fifa-gold dark:text-fifa-gold">FIFA 2026</span>
+              </h1>
+              <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">
+                Canadá · México · EUA
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
             {/* Live indicator */}
             {liveCount > 0 && (
-              <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 mr-1">
+              <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 mr-1 live-glow rounded-md px-1.5 py-0.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                 {liveCount} ao vivo
               </span>
@@ -45,7 +51,7 @@ export default function Navigation() {
             <button
               onClick={() => refreshNow()}
               disabled={isRefreshing}
-              className="rounded-md p-1.5 hover:bg-accent transition-colors flex items-center gap-1"
+              className="rounded-md p-1.5 hover:bg-fifa-green/10 transition-colors flex items-center gap-1 text-muted-foreground hover:text-fifa-green"
               title="Atualizar dados agora"
             >
               <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
@@ -54,7 +60,7 @@ export default function Navigation() {
             {/* Dark mode */}
             <button
               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              className="rounded-md p-1.5 hover:bg-accent transition-colors"
+              className="rounded-md p-1.5 hover:bg-fifa-gold/10 transition-colors text-muted-foreground hover:text-fifa-gold"
               aria-label="Alternar tema"
             >
               <Sun className="h-3.5 w-3.5 dark:hidden" />
@@ -75,9 +81,9 @@ export default function Navigation() {
                 aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  'flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors relative',
+                  'flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-all relative',
                   activeTab === tab.id
-                    ? 'border-primary text-primary'
+                    ? 'border-fifa-green text-fifa-green dark:text-fifa-green'
                     : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30'
                 )}
               >
@@ -96,13 +102,13 @@ export default function Navigation() {
         </nav>
 
         {/* Timezone + last poll */}
-        <div className="flex items-center justify-between py-1.5 text-xs text-muted-foreground border-b">
+        <div className="flex items-center justify-between py-1.5 text-xs text-muted-foreground border-b border-fifa-green/10">
           <div className="flex items-center gap-2">
             <span>Fuso:</span>
             <select
               value={timezone}
               onChange={e => setTimezone(e.target.value)}
-              className="bg-transparent border-b border-muted-foreground/30 px-1 py-0.5 text-xs focus:outline-none focus:border-primary cursor-pointer"
+              className="bg-transparent border-b border-muted-foreground/30 px-1 py-0.5 text-xs focus:outline-none focus:border-fifa-green cursor-pointer"
             >
               <option value="America/Sao_Paulo">Brasília (UTC-3)</option>
               <option value="UTC">UTC</option>

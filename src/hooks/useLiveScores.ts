@@ -48,7 +48,7 @@ export function useLiveScores() {
 
   const poll = useCallback(async () => {
     try {
-      const url = `/api/live-scores?XTransformPort=3000`;
+      const url = `/api/live-scores`;
       const res = await fetch(url);
       if (!res.ok) return;
 
