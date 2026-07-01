@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { MatchDef, TeamStanding, ThirdPlaceEntry, ESPNMatchScore, RawKnockoutEvent } from '@/data/types';
 import { GROUP_MATCHES, BRACKET_CONFIG } from '@/data/worldcup';
 import { calculateGroupStandings } from '@/lib/standings';
-import { calculateThirdPlaceRanking } from '@/lib/thirdPlaceRanking';
+import { calculateThirdPlaceRanking, resolveAllThirdPlaceSlots } from '@/lib/thirdPlaceRanking';
 import { resolveBracket } from '@/lib/bracketResolver';
 import { ESPN_TO_TEAM } from '@/lib/espnMapping';
 import { classifyESPNStatus } from '@/lib/espnStatus';
@@ -315,11 +315,16 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         }
       }
 
-      // ── Date-based fallback matching for unmatched events ──
-      // Build a date-indexed list of bracket entries that weren't matched above
+      // ── Team-position-based matching for unmatched R32 events ──
+      // Instead of matching by date (which is unreliable — multiple R32 share dates),
+      // match by each team's group position (e.g., 1A, 2B, 3_ABCDF) to find the
+      // correct BRACKET_CONFIG slot.
       const matchedIds = new Set(Object.keys(newInfo));
       const usedIds = new Set<string>();
-      const dateToUnmatched = new Map<string, Array<{ id: string; homeSlot: string; awaySlot: string; homeTeam: string | null; awayTeam: string | null; date: string }>>();
+      const espnBracketTeams: Record<string, { homeTeam: string; awayTeam: string }> = { ...get().espnBracketTeams };
+
+      // Build date-indexed list for non-R32 fallback matching
+      const dateToUnmatched = new Map<string, Array<{ id: string; homeTeam: string | null; awayTeam: string | null; date: string }>>();
       for (const entry of allEntries) {
         if (matchedIds.has(entry.id)) continue;
         if (!entry.date) continue;
@@ -328,39 +333,35 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         dateToUnmatched.set(entry.date, arr);
       }
 
-      // Helper: try to match an ESPN event to an unmatched bracket entry
-      // STRICT mode: both teams must match the bracket's resolved teams.
-      // R32 OVERRIDE mode: for R32 entries, match by date only and override teams.
-      function tryDateMatch(evtDate: string, homeId: string, awayId: string, r32Override: boolean) {
-        const candidates = dateToUnmatched.get(evtDate);
-        if (!candidates) return;
-        for (const entry of candidates) {
-          if (usedIds.has(entry.id)) continue;
-          // R32 override: match any unmatched R32 slot by date (overrides teams with ESPN data)
-          if (r32Override && entry.id.startsWith('R32')) {
-            return entry;
-          }
-          // Strict: both teams must match the bracket's resolved teams (order-independent)
-          const teamsMatch =
-            (homeId === entry.homeTeam && awayId === entry.awayTeam) ||
-            (homeId === entry.awayTeam && awayId === entry.homeTeam);
-          if (teamsMatch) {
-            return entry;
-          }
+      // Build teamId → slotKey map from current standings
+      const teamToSlot = new Map<string, string>();
+      for (const [groupId, standings] of allStandings) {
+        for (const s of standings) {
+          if (s.position === 1) teamToSlot.set(s.teamId, `1${groupId}`);
+          else if (s.position === 2) teamToSlot.set(s.teamId, `2${groupId}`);
         }
-        return undefined;
+      }
+      // Add 3rd-place pool assignments
+      const allGroupsComplete = (['A','B','C','D','E','F','G','H','I','J','K','L'] as const)
+        .every(g => {
+          const sts = allStandings.get(g);
+          return sts?.every(s => s.played === 3) ?? false;
+        });
+      if (allGroupsComplete) {
+        const thirdPlaceMap = resolveAllThirdPlaceSlots(allStandings, thirdPlaceRanking);
+        for (const [pool, teamId] of thirdPlaceMap) {
+          teamToSlot.set(teamId, pool);
+        }
       }
 
-      // For each unmatched ESPN event, try to match by date (±1 day)
-      const espnBracketTeams: Record<string, { homeTeam: string; awayTeam: string }> = { ...get().espnBracketTeams };
+      // For each unmatched ESPN R32 event, match by slot keys
       for (const evt of events) {
         const homeId = ESPN_TO_TEAM[evt.homeAbbr];
         const awayId = ESPN_TO_TEAM[evt.awayAbbr];
         if (!homeId || !awayId) continue;
-        const evtDate = evt.date;
-        if (!evtDate) continue;
+        if (matchedIds.has(`${homeId}:${awayId}`) || matchedIds.has(`${awayId}:${homeId}`)) continue;
 
-        // Skip if this team pair was already matched
+        // Skip if this team pair was already matched in espnBracketTeams
         const pairKey = [homeId, awayId].sort().join(':');
         let alreadyMatched = false;
         for (const [, teams] of Object.entries(espnBracketTeams)) {
@@ -371,10 +372,71 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         }
         if (alreadyMatched) continue;
 
-        // Try exact date, then ±1 day
-        // For R32 events, use date-only matching to override bracket resolver's teams
         const note = evt.altGameNote || '';
         const isR32Event = note.includes('Round of 32');
+
+        if (isR32Event && teamToSlot.has(homeId) && teamToSlot.has(awayId)) {
+          const homeSlotKey = teamToSlot.get(homeId)!;
+          const awaySlotKey = teamToSlot.get(awayId)!;
+
+          // Find R32 config where slot keys match (order-independent)
+          const cfg = BRACKET_CONFIG.r32.find(c =>
+            (c.homeSlot === homeSlotKey && c.awaySlot === awaySlotKey) ||
+            (c.homeSlot === awaySlotKey && c.awaySlot === homeSlotKey)
+          );
+          if (!cfg) continue;
+          if (matchedIds.has(cfg.id)) continue;
+
+          const isReversed = cfg.homeSlot === awaySlotKey;
+          usedIds.add(cfg.id);
+          matchedIds.add(cfg.id);
+          espnBracketTeams[cfg.id] = {
+            homeTeam: isReversed ? awayId : homeId,
+            awayTeam: isReversed ? homeId : awayId,
+          };
+
+          // Add live info
+          const status = classifyESPNStatus(evt.statusName);
+          const isLiveOrFinished = status === 'live' || status === 'finished';
+          const pH = parseInt(evt.homeScore, 10);
+          const pA = parseInt(evt.awayScore, 10);
+          const homeScore = isLiveOrFinished && !isNaN(pH) ? (isReversed ? pA : pH) : null;
+          const awayScore = isLiveOrFinished && !isNaN(pA) ? (isReversed ? pH : pA) : null;
+
+          newInfo[cfg.id] = {
+            status,
+            homeScore,
+            awayScore,
+            minute: status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined,
+            displayClock: evt.displayClock,
+          };
+
+          if (status === 'live' && newInfo[cfg.id].minute != null) {
+            newKnockoutLive[cfg.id] = newInfo[cfg.id].minute!;
+          }
+
+          if (status === 'finished' && homeScore !== null && awayScore !== null) {
+            let penH: number | undefined, penA: number | undefined;
+            if (evt.shortDetail) {
+              const pk = evt.shortDetail.match(/PK\s+(\d+)\s*[-–]\s*(\d+)/i);
+              if (pk) {
+                penH = isReversed ? parseInt(pk[2], 10) : parseInt(pk[1], 10);
+                penA = isReversed ? parseInt(pk[1], 10) : parseInt(pk[2], 10);
+              }
+            }
+            finishedKO.push({
+              id: cfg.id,
+              home: homeScore,
+              away: awayScore,
+              penaltyHome: penH, penaltyAway: penA,
+            });
+          }
+          continue;
+        }
+
+        // For non-R32 events, use date-based matching (strict team pair)
+        const evtDate = evt.date;
+        if (!evtDate) continue;
 
         const d = new Date(evtDate + 'T12:00:00Z');
         const dates = [
@@ -383,19 +445,25 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           new Date(d.getTime() + 86400000).toISOString().slice(0, 10),
         ];
 
-        let matchedEntry: typeof allEntries[0] | undefined;
+        let matchedEntry: { id: string; homeTeam: string | null; awayTeam: string | null; date: string } | undefined;
         for (const tryDate of dates) {
-          matchedEntry = tryDateMatch(tryDate, homeId, awayId, isR32Event);
+          const candidates = dateToUnmatched.get(tryDate);
+          if (!candidates) continue;
+          matchedEntry = candidates.find(e =>
+            !usedIds.has(e.id) &&
+            ((e.homeTeam === homeId && e.awayTeam === awayId) ||
+             (e.homeTeam === awayId && e.awayTeam === homeId))
+          );
           if (matchedEntry) break;
         }
         if (!matchedEntry) continue;
 
+        // Find the full bracket entry for this matched ID (to get scores etc.)
+        const fullEntry = allEntries.find(e => e.id === matchedEntry!.id);
         usedIds.add(matchedEntry.id);
-        // For R32 override (date-only match), use ESPN teams directly.
-        // For strict match, align home/away to bracket order.
         let confirmedHome = homeId;
         let confirmedAway = awayId;
-        if (!isR32Event && matchedEntry.homeTeam && matchedEntry.awayTeam) {
+        if (matchedEntry.homeTeam && matchedEntry.awayTeam) {
           if (matchedEntry.homeTeam === awayId && matchedEntry.awayTeam === homeId) {
             confirmedHome = awayId;
             confirmedAway = homeId;
@@ -407,8 +475,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           const isLiveOrFinished = status === 'live' || status === 'finished';
           const pH = parseInt(evt.homeScore, 10);
           const pA = parseInt(evt.awayScore, 10);
-          // For R32 override, use ESPN scores directly (no reversal needed)
-          const useReversal = !isR32Event && matchedEntry.homeTeam === awayId;
+          const isRev = fullEntry ? fullEntry.homeTeam === awayId : false;
           newInfo[matchedEntry.id] = {
             status,
             homeScore: isLiveOrFinished && !isNaN(pH) ? pH : null,
@@ -417,7 +484,6 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
             displayClock: evt.displayClock,
           };
           if (status === 'finished' && !isNaN(pH) && !isNaN(pA)) {
-            const isRev = useReversal;
             let penH: number | undefined, penA: number | undefined;
             if (evt.shortDetail) {
               const pk = evt.shortDetail.match(/PK\s+(\d+)\s*[-–]\s*(\d+)/i);
