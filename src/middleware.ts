@@ -8,6 +8,15 @@ const RATE_LIMIT_MAX = 30; // 30 requests per minute per IP (generous for pollin
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
+
+  // Clean up occasionally during requests instead of using setInterval
+  // which causes memory leaks in serverless edge environments
+  if (Math.random() < 0.01) {
+    for (const [key, entry] of rateLimitMap.entries()) {
+      if (now > entry.resetAt) rateLimitMap.delete(key);
+    }
+  }
+
   const entry = rateLimitMap.get(ip);
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
@@ -16,14 +25,6 @@ function checkRateLimit(ip: string): boolean {
   entry.count++;
   return entry.count <= RATE_LIMIT_MAX;
 }
-
-// Clean up old entries periodically (every 10 minutes)
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of rateLimitMap) {
-    if (now > entry.resetAt) rateLimitMap.delete(ip);
-  }
-}, 10 * 60 * 1000);
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
@@ -41,7 +42,8 @@ export function middleware(request: NextRequest) {
 
   // Rate limiting (only for API routes)
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    // Note: in a real environment relying just on x-forwarded-for without validation is spoofable.
+    const ip = (request as any).ip || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     if (!checkRateLimit(ip)) {
       return new NextResponse(JSON.stringify({ error: 'Rate limit exceeded' }), {
         status: 429,

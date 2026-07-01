@@ -34,43 +34,29 @@ interface EventSummary {
   }>;
 }
 
-// ── Cache ──────────────────────────────────────────────────────────────
-let _cache: { data: { scorers: PlayerStat[]; all: PlayerStat[] }; timestamp: number } | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
 // ── ESPN API helpers ───────────────────────────────────────────────────
 
 async function fetchScoreboard(dates: string[], signal?: AbortSignal) {
   const allEvents: Array<{ id: string; date: string; status: string; note: string }> = [];
-  const BATCH = 10;
-  for (let i = 0; i < dates.length; i += BATCH) {
-    if (signal?.aborted) break;
-    const batch = dates.slice(i, i + BATCH);
-    const results = await Promise.all(
-      batch.map(async (d) => {
-        try {
-          const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${d}`;
-          const res = await fetch(url, { signal, next: { revalidate: 60 } });
-          if (!res.ok) return [];
-          const data = await res.json();
-          return (data.events ?? []).map((e: Record<string, unknown>) => ({
-            id: String(e.id),
-            date: (e.date as string)?.slice(0, 10) ?? '',
-            status: e.competitions?.[0]?.status?.type?.name ?? '',
-            note: e.competitions?.[0]?.altGameNote ?? '',
-          }));
-        } catch { return []; }
-      })
-    );
-    for (const r of results) allEvents.push(...r);
-  }
+  try {
+    const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=200`;
+    const res = await fetch(url, { signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.events ?? []).map((e: Record<string, unknown>) => ({
+      id: String(e.id),
+      date: (e.date as string)?.slice(0, 10) ?? '',
+      status: e.competitions?.[0]?.status?.type?.name ?? '',
+      note: e.competitions?.[0]?.altGameNote ?? '',
+    }));
+  } catch { return []; }
   return allEvents;
 }
 
 async function fetchSummary(eventId: string, signal?: AbortSignal): Promise<EventSummary | null> {
   try {
     const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`;
-    const res = await fetch(url, { signal, next: { revalidate: 300 } });
+    const res = await fetch(url, { signal });
     if (!res.ok) return null;
     const d = await res.json();
     if (d.code) return null;
@@ -98,16 +84,16 @@ async function fetchSummary(eventId: string, signal?: AbortSignal): Promise<Even
       homeScore: parseInt(hc.score, 10) || 0,
       awayScore: parseInt(ac.score, 10) || 0,
       status: comp.status?.type?.name ?? '',
-      keyEvents: (d.keyEvents ?? []).map((ev: Record<string, unknown>) => ({
-        type: { text: (ev.type as Record<string, string>)?.text ?? '', type: (ev.type as Record<string, string>)?.type ?? '' },
-        team: { id: String((ev.team as Record<string, string>)?.id ?? ''), displayName: (ev.team as Record<string, string>)?.displayName ?? '', abbreviation: (ev.team as Record<string, string>)?.abbreviation ?? '' },
-        participants: ((ev.participants ?? []) as Array<Record<string, unknown>>).map((p: Record<string, unknown>) => ({
-          athlete: { id: String((p.athlete as Record<string, string>)?.id ?? ''), displayName: (p.athlete as Record<string, string>)?.displayName ?? '' },
+      keyEvents: (d.keyEvents ?? []).map((ev: any) => ({
+        type: { text: ev.type?.text ?? '', type: ev.type?.type ?? '' },
+        team: { id: String(ev.team?.id ?? ''), displayName: ev.team?.displayName ?? '', abbreviation: ev.team?.abbreviation ?? '' },
+        participants: (ev.participants ?? []).map((p: any) => ({
+          athlete: { id: String(p.athlete?.id ?? ''), displayName: p.athlete?.displayName ?? '' },
         })),
-        clock: { displayValue: (ev.clock as Record<string, string>)?.displayValue ?? '' },
+        clock: { displayValue: ev.clock?.displayValue ?? '' },
         scoringPlay: ev.scoringPlay === true,
-        text: (ev.text as string) ?? '',
-        shortText: (ev.shortText as string) ?? '',
+        text: ev.text ?? '',
+        shortText: ev.shortText ?? '',
       })),
     };
   } catch { return null; }
@@ -184,17 +170,8 @@ function aggregateStats(summaries: EventSummary[]): { scorers: PlayerStat[]; all
 // ── Main handler ───────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
-  // Return cached data if fresh
-  if (_cache && Date.now() - _cache.timestamp < CACHE_TTL) {
-    return NextResponse.json({
-      ..._cache.data,
-      cached: true,
-      serverTime: new Date().toISOString(),
-    });
-  }
-
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 50_000);
+  const timeout = setTimeout(() => controller.abort(), 14_000); // 14s for Vercel hobby limits
 
   try {
     // 1. Get all match event IDs
@@ -239,26 +216,19 @@ export async function GET(request: Request) {
     // 3. Aggregate
     const data = aggregateStats(summaries);
 
-    // Cache
-    _cache = { data, timestamp: Date.now() };
-
     return NextResponse.json({
       ...data,
       cached: false,
       matchesProcessed: summaries.length,
       serverTime: new Date().toISOString(),
+    }, {
+      headers: {
+        'Cache-Control': 's-maxage=300, stale-while-revalidate=60',
+      },
     });
   } catch (error) {
-    // On error, return stale cache if available
-    if (_cache) {
-      return NextResponse.json({
-        ..._cache.data,
-        cached: true,
-        stale: true,
-        serverTime: new Date().toISOString(),
-      });
-    }
-    const msg = error instanceof DOMException && error.name === 'AbortError'
+    console.error(`[espn-stats] error:`, error);
+    const msg = (error as Error)?.name === 'AbortError'
       ? 'Timeout aggregating stats'
       : 'Error fetching stats';
     return NextResponse.json({ error: msg, scorers: [], all: [] }, { status: 500 });

@@ -39,10 +39,16 @@ function AnimatedScore({ score }: { score: number }) {
 
   useEffect(() => {
     if (score !== prevScore) {
-      setAnimating(true);
-      setPrevScore(score);
-      const timer = setTimeout(() => setAnimating(false), 500);
-      return () => clearTimeout(timer);
+      // Small delay before setting animation state to avoid synchronous cascade
+      const startTimer = setTimeout(() => {
+        setAnimating(true);
+        setPrevScore(score);
+      }, 0);
+      const stopTimer = setTimeout(() => setAnimating(false), 500);
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(stopTimer);
+      };
     }
   }, [score, prevScore]);
 
@@ -132,8 +138,8 @@ export default function LiveTab() {
         venue: evt.venue || '',
         city: evt.city || '',
         roundLabel,
-        homeScore: hasScore ? (parseInt(evt.homeScore, 10) || null) : null,
-        awayScore: hasScore ? (parseInt(evt.awayScore, 10) || null) : null,
+        homeScore: hasScore ? (isNaN(parseInt(evt.homeScore, 10)) ? null : parseInt(evt.homeScore, 10)) : null,
+        awayScore: hasScore ? (isNaN(parseInt(evt.awayScore, 10)) ? null : parseInt(evt.awayScore, 10)) : null,
         status,
         liveMinute: status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined,
       });
