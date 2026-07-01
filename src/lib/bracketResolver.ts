@@ -95,7 +95,8 @@ function resolveSlotToTeamId(
 export function resolveBracket(
   allStandings: Map<string, TeamStanding[]>,
   thirds: ThirdPlaceEntry[],
-  knockoutResults: Map<string, { home: number; away: number; penaltyHome?: number; penaltyAway?: number }>
+  knockoutResults: Map<string, { home: number; away: number; penaltyHome?: number; penaltyAway?: number }>,
+  espnTeamsOverride?: Record<string, { homeTeam: string; awayTeam: string }>
 ): ResolvedBracket {
   // Pre-resolve all 8 third-place slots at once (prevents double-assignment)
   const thirdPlaceMap = allGroupsComplete(allStandings)
@@ -107,13 +108,17 @@ export function resolveBracket(
     const home = resolveSlotToTeamId(cfg.homeSlot, allStandings, thirdPlaceMap);
     const away = resolveSlotToTeamId(cfg.awaySlot, allStandings, thirdPlaceMap);
     const result = knockoutResults.get(cfg.id);
+
+    // ESPN overrides for teams in case group standings are incomplete or mismatch
+    const espnOverride = espnTeamsOverride?.[cfg.id];
+
     return {
       id: cfg.id,
       round: 'r32',
       homeSlot: cfg.homeSlot,
       awaySlot: cfg.awaySlot,
-      homeTeam: home.teamId,
-      awayTeam: away.teamId,
+      homeTeam: espnOverride ? espnOverride.homeTeam : home.teamId,
+      awayTeam: espnOverride ? espnOverride.awayTeam : away.teamId,
       homeScore: result?.home ?? null,
       awayScore: result?.away ?? null,
       penaltyHome: result?.penaltyHome ?? null,
@@ -150,13 +155,16 @@ export function resolveBracket(
           ? awayFeeder?.homeTeam ?? null
           : awayFeeder?.awayTeam ?? null;
       }
+
+      const espnOverride = espnTeamsOverride?.[cfg.id];
+
       return {
         id: cfg.id,
         round: roundName,
         homeSlot: `V(${cfg.feederHome})`,
         awaySlot: `V(${cfg.feederAway})`,
-        homeTeam,
-        awayTeam,
+        homeTeam: espnOverride ? espnOverride.homeTeam : homeTeam,
+        awayTeam: espnOverride ? espnOverride.awayTeam : awayTeam,
         homeScore: result?.home ?? null,
         awayScore: result?.away ?? null,
         penaltyHome: result?.penaltyHome ?? null,
@@ -202,13 +210,16 @@ export function resolveBracket(
     const loser = getWinner(sf02Result, 'SF-02') === 'home' ? 'away' : 'home';
     thirdAwayTeam = getTeamFromMatch('SF-02', loser, sf);
   }
+
+  const thirdPlaceOverride = espnTeamsOverride?.[BRACKET_CONFIG.third_place.id];
+
   const thirdPlace: KnockoutMatch = {
     id: BRACKET_CONFIG.third_place.id,
     round: 'third_place',
     homeSlot: `P(${BRACKET_CONFIG.third_place.feederHome})`,
     awaySlot: `P(${BRACKET_CONFIG.third_place.feederAway})`,
-    homeTeam: thirdHomeTeam,
-    awayTeam: thirdAwayTeam,
+    homeTeam: thirdPlaceOverride ? thirdPlaceOverride.homeTeam : thirdHomeTeam,
+    awayTeam: thirdPlaceOverride ? thirdPlaceOverride.awayTeam : thirdAwayTeam,
     homeScore: thirdPlaceResult?.home ?? null,
     awayScore: thirdPlaceResult?.away ?? null,
     penaltyHome: thirdPlaceResult?.penaltyHome ?? null,
@@ -230,13 +241,16 @@ export function resolveBracket(
   if (sf02Result && getWinner(sf02Result, 'SF-02')) {
     finalAwayTeam = getTeamFromMatch('SF-02', getWinner(sf02Result, 'SF-02')!, sf);
   }
+
+  const finalOverride = espnTeamsOverride?.[BRACKET_CONFIG.final.id];
+
   const final: KnockoutMatch = {
     id: BRACKET_CONFIG.final.id,
     round: 'final',
     homeSlot: `V(${BRACKET_CONFIG.final.feederHome})`,
     awaySlot: `V(${BRACKET_CONFIG.final.feederAway})`,
-    homeTeam: finalHomeTeam,
-    awayTeam: finalAwayTeam,
+    homeTeam: finalOverride ? finalOverride.homeTeam : finalHomeTeam,
+    awayTeam: finalOverride ? finalOverride.awayTeam : finalAwayTeam,
     homeScore: finalResult?.home ?? null,
     awayScore: finalResult?.away ?? null,
     penaltyHome: finalResult?.penaltyHome ?? null,

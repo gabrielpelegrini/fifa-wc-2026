@@ -58,11 +58,6 @@ export interface ThirdPlaceEntry {
   qualified: boolean;
 }
 
-export type BracketSlotRef =
-  | { type: 'group_winner'; group: string }
-  | { type: 'group_runnerup'; group: string }
-  | { type: 'third_place'; pool: string[] };
-
 export interface KnockoutMatch {
   id: string;
   round: 'r32' | 'r16' | 'qf' | 'sf' | 'third_place' | 'final';

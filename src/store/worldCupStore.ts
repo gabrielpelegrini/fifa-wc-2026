@@ -149,9 +149,13 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
     },
 
     bulkUpdateFromESPN: (scores) => {
+      let matchesChanged = false;
       const newMatches = get().matches.map(m => {
         const s = scores[m.id];
         if (!s) return m;
+        if (m.homeScore !== s.homeScore || m.awayScore !== s.awayScore || m.status !== s.status || (s.espnTime && m.time !== s.espnTime)) {
+          matchesChanged = true;
+        }
         return {
           ...m,
           homeScore: s.homeScore,
@@ -165,18 +169,26 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         };
       });
       const newLiveMatches: Record<string, number> = { ...get().liveMatches }; // preserve existing (e.g. knockout)
+      let liveMatchesChanged = false;
       for (const [id, s] of Object.entries(scores)) {
         if (s.status === 'live' && s.minute != null) {
+          if (newLiveMatches[id] !== s.minute) liveMatchesChanged = true;
           newLiveMatches[id] = s.minute;
         }
       }
+
       const kr = get().knockoutResults;
-      const computed = computeAll(newMatches, kr);
-      set({ matches: newMatches, liveMatches: newLiveMatches, ...computed });
+
+      if (matchesChanged) {
+        const computed = computeAll(newMatches, kr);
+        set({ matches: newMatches, liveMatches: newLiveMatches, ...computed });
+      } else if (liveMatchesChanged) {
+        set({ liveMatches: newLiveMatches });
+      }
     },
 
     updateKnockoutLive: (events) => {
-      const { allStandings, knockoutResults, thirdPlaceRanking } = get();
+      const { allStandings, knockoutResults, thirdPlaceRanking, espnBracketTeams: currentEspnBracketTeams } = get();
       // Clear stale live data when no knockout events from ESPN
       if (events.length === 0) {
         set({ knockoutLiveInfo: {}, rawKnockoutEvents: [] });
@@ -184,7 +196,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       }
 
       // Re-compute bracket to ensure latest team assignments (including 3rd place pools)
-      const freshBracket = resolveBracket(allStandings, thirdPlaceRanking, knockoutResults);
+      const freshBracket = resolveBracket(allStandings, thirdPlaceRanking, knockoutResults, currentEspnBracketTeams);
 
       // Build a function to resolve a slot to teamId using current standings
       const slotToTeam = (slot: string): string | null => {
@@ -443,16 +455,8 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         }
       }
 
-      // Single atomic set() — no intermediate render state
-      const update: Record<string, unknown> = {
-        knockoutLiveInfo: newInfo,
-        liveMatches: { ...get().liveMatches, ...newKnockoutLive },
-        rawKnockoutEvents: events, // Store raw ESPN data for LiveTab fallback display
-        bracket: freshBracket, // Use the fresh bracket we computed above
-        espnBracketTeams,
-      };
-
       // Auto-update knockout bracket with finished results so winners advance
+      let finalBracket = freshBracket;
       if (finishedKO.length > 0) {
         const newKR = new Map(get().knockoutResults);
         for (const r of finishedKO) {
@@ -463,9 +467,20 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
             ...(r.penaltyAway != null && { penaltyAway: r.penaltyAway }),
           });
         }
+        // Re-compute entirely with the new results so the bracket progresses correctly
+        finalBracket = resolveBracket(allStandings, thirdPlaceRanking, newKR, espnBracketTeams);
         const computed = computeAll(get().matches, newKR);
-        Object.assign(update, { knockoutResults: newKR, ...computed });
+        set({ knockoutResults: newKR, ...computed });
       }
+
+      // Single atomic set() — no intermediate render state
+      const update: Record<string, unknown> = {
+        knockoutLiveInfo: newInfo,
+        liveMatches: { ...get().liveMatches, ...newKnockoutLive },
+        rawKnockoutEvents: events, // Store raw ESPN data for LiveTab fallback display
+        bracket: finalBracket, // Use the fresh bracket we computed above
+        espnBracketTeams,
+      };
 
       set(update);
     },

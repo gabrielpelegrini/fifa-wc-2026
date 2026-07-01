@@ -31,8 +31,11 @@ export function useFavorites() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setFavorites(getFavorites());
-    setLoaded(true);
+    // Avoid synchronous cascade
+    setTimeout(() => {
+      setFavorites(getFavorites());
+      setLoaded(true);
+    }, 0);
   }, []);
 
   const toggle = (teamId: string) => {
