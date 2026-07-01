@@ -201,16 +201,22 @@ export async function GET(request: Request) {
     const ALL_DATES: string[] = [];
     // Group stage: June 11-28
     for (let d = 11; d <= 28; d++) ALL_DATES.push(`202606${String(d).padStart(2, '0')}`);
-    // Knockout: June 28 - July 19
-    for (let m = 6; m <= 7; m++) {
-      const maxDay = m === 6 ? 30 : 19;
-      const minDay = m === 6 ? 28 : 1;
-      for (let d = minDay; d <= maxDay; d++) {
-        ALL_DATES.push(`20260${m}${String(d).padStart(2, '0')}`);
-      }
+    // Knockout: June 28 - yesterday (no need to fetch future dates)
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+    const koEnd = todayStr < '20260719' ? todayStr : '20260719';
+    // June 28-30
+    for (let d = 28; d <= 30; d++) ALL_DATES.push(`202606${String(d).padStart(2, '0')}`);
+    // July 1 - min(koEnd, today)
+    for (let d = 1; d <= 19; d++) {
+      const ds = `202607${String(d).padStart(2, '0')}`;
+      if (ds <= koEnd) ALL_DATES.push(ds);
+      else break;
     }
+    // Deduplicate (June 28 appears in both ranges)
+    const uniqueDates = [...new Set(ALL_DATES)];
 
-    const events = await fetchScoreboard(ALL_DATES, controller.signal);
+    const events = await fetchScoreboard(uniqueDates, controller.signal);
     // Only fetch finished matches
     const finishedIds = events
       .filter(e => e.status === 'STATUS_FULL_TIME' || e.status === 'STATUS_FINAL' || e.status === 'STATUS_FINAL_PEN')

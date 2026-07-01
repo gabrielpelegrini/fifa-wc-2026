@@ -329,15 +329,18 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       }
 
       // Helper: try to match an ESPN event to an unmatched bracket entry
-      // STRICT: only match when both ESPN teams align with the bracket's resolved teams.
-      // Previously used getPossibleTeams (all teams in a group) which was too loose
-      // and caused wrong matchups (e.g., assigning any group team to a winner slot).
-      function tryDateMatch(evtDate: string, homeId: string, awayId: string) {
+      // STRICT mode: both teams must match the bracket's resolved teams.
+      // R32 OVERRIDE mode: for R32 entries, match by date only and override teams.
+      function tryDateMatch(evtDate: string, homeId: string, awayId: string, r32Override: boolean) {
         const candidates = dateToUnmatched.get(evtDate);
         if (!candidates) return;
         for (const entry of candidates) {
           if (usedIds.has(entry.id)) continue;
-          // Both teams must match the bracket's resolved teams (order-independent)
+          // R32 override: match any unmatched R32 slot by date (overrides teams with ESPN data)
+          if (r32Override && entry.id.startsWith('R32')) {
+            return entry;
+          }
+          // Strict: both teams must match the bracket's resolved teams (order-independent)
           const teamsMatch =
             (homeId === entry.homeTeam && awayId === entry.awayTeam) ||
             (homeId === entry.awayTeam && awayId === entry.homeTeam);
@@ -369,6 +372,10 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
         if (alreadyMatched) continue;
 
         // Try exact date, then ±1 day
+        // For R32 events, use date-only matching to override bracket resolver's teams
+        const note = evt.altGameNote || '';
+        const isR32Event = note.includes('Round of 32');
+
         const d = new Date(evtDate + 'T12:00:00Z');
         const dates = [
           evtDate,
@@ -378,15 +385,17 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
 
         let matchedEntry: typeof allEntries[0] | undefined;
         for (const tryDate of dates) {
-          matchedEntry = tryDateMatch(tryDate, homeId, awayId);
+          matchedEntry = tryDateMatch(tryDate, homeId, awayId, isR32Event);
           if (matchedEntry) break;
         }
         if (!matchedEntry) continue;
 
         usedIds.add(matchedEntry.id);
+        // For R32 override (date-only match), use ESPN teams directly.
+        // For strict match, align home/away to bracket order.
         let confirmedHome = homeId;
         let confirmedAway = awayId;
-        if (matchedEntry.homeTeam && matchedEntry.awayTeam) {
+        if (!isR32Event && matchedEntry.homeTeam && matchedEntry.awayTeam) {
           if (matchedEntry.homeTeam === awayId && matchedEntry.awayTeam === homeId) {
             confirmedHome = awayId;
             confirmedAway = homeId;
@@ -398,6 +407,8 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
           const isLiveOrFinished = status === 'live' || status === 'finished';
           const pH = parseInt(evt.homeScore, 10);
           const pA = parseInt(evt.awayScore, 10);
+          // For R32 override, use ESPN scores directly (no reversal needed)
+          const useReversal = !isR32Event && matchedEntry.homeTeam === awayId;
           newInfo[matchedEntry.id] = {
             status,
             homeScore: isLiveOrFinished && !isNaN(pH) ? pH : null,
@@ -406,7 +417,7 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
             displayClock: evt.displayClock,
           };
           if (status === 'finished' && !isNaN(pH) && !isNaN(pA)) {
-            const isRev = matchedEntry.homeTeam === awayId;
+            const isRev = useReversal;
             let penH: number | undefined, penA: number | undefined;
             if (evt.shortDetail) {
               const pk = evt.shortDetail.match(/PK\s+(\d+)\s*[-–]\s*(\d+)/i);

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useWorldCupStore } from '@/store/worldCupStore';
-import { TEAMS, GROUPS, BRACKET_CONFIG } from '@/data/worldcup';
+import { TEAMS, GROUPS } from '@/data/worldcup';
 import { getTeamName } from '@/lib/standings';
 import { formatTime, formatDate, getLocalDate } from '@/lib/dateUtils';
 import { ESPN_TO_TEAM } from '@/lib/espnMapping';
@@ -41,7 +41,7 @@ export default function Calendar() {
     matches, timezone,
     filterGroup, filterTeam, filterRound,
     setFilterGroup, setFilterTeam, setFilterRound,
-    liveMatches, rawKnockoutEvents, bracket, knockoutLiveInfo, espnBracketTeams,
+    rawKnockoutEvents,
   } = useWorldCupStore();
 
   // Build unified match list: group + knockout
@@ -56,7 +56,7 @@ export default function Calendar() {
         date: m.date, time: m.time, venue: m.venue, city: m.city, country: m.country,
         group: m.group || '', round: m.round ?? 0,
         homeScore: m.homeScore ?? null, awayScore: m.awayScore ?? null,
-        status: m.status || 'upcoming', liveMinute: liveMatches[m.id],
+        status: m.status || 'upcoming',
         roundLabel: `Grupo ${m.group || ''}`,
       });
     }
@@ -104,42 +104,8 @@ export default function Calendar() {
       }
     }
 
-    // 3) Bracket knockout matches (SUPPLEMENT — only for slots not covered by ESPN)
-    //    For R32: only include matches that have ESPN-confirmed teams (no predictions)
-    //    For R16+: include all (bracket resolver correctly computes from match results)
-    if (bracket) {
-
-      const koMatches = [...bracket.r32, ...bracket.r16, ...bracket.qf, ...bracket.sf, bracket.thirdPlace, bracket.final];
-      for (const m of koMatches) {
-        // For R32: skip if no ESPN-confirmed teams (would show wrong predictions)
-        if (m.round === 'r32' && !espnBracketTeams[m.id]) continue;
-        
-        // Skip if ESPN already has this team pair
-        if (m.homeTeam && m.awayTeam) {
-          const key = [m.homeTeam, m.awayTeam].sort().join(':');
-          if (espnKOPairs.has(key)) continue;
-        }
-        const koInfo = knockoutLiveInfo[m.id];
-        const hasResult = m.homeScore !== null && m.awayScore !== null;
-        const status = koInfo?.status ?? (hasResult ? 'finished' : 'upcoming');
-        const ht = m.homeTeam;
-        const at = m.awayTeam;
-        list.push({
-          id: m.id, homeTeam: ht, awayTeam: at,
-          homeLabel: ht ? getTeamName(ht) : m.homeSlot,
-          awayLabel: at ? getTeamName(at) : m.awaySlot,
-          date: m.date, time: m.time, venue: m.venue, city: m.city, country: '',
-          group: '', round: 4,
-          homeScore: koInfo?.homeScore ?? m.homeScore,
-          awayScore: koInfo?.awayScore ?? m.awayScore,
-          status, liveMinute: liveMatches[m.id],
-          roundLabel: ROUND_LABELS[m.round] || m.round,
-        });
-      }
-    }
-
     return list;
-  }, [matches, bracket, knockoutLiveInfo, rawKnockoutEvents, liveMatches, espnBracketTeams]);
+  }, [matches, rawKnockoutEvents]);
 
   // Compute the user-local date for each match (converts UTC date+time → user timezone)
   const matchLocalDates = useMemo(() => {

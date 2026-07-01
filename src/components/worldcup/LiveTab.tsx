@@ -5,7 +5,6 @@ import { useWorldCupStore } from '@/store/worldCupStore';
 import { useLiveScores } from '@/hooks/useLiveScores';
 import { getTeamName } from '@/lib/standings';
 import { formatTime, getLocalDate } from '@/lib/dateUtils';
-import { getSlotLabel } from '@/lib/bracketResolver';
 import { classifyESPNStatus } from '@/lib/espnStatus';
 import FlagIcon from './FlagIcon';
 import { cn } from '@/lib/utils';
@@ -13,16 +12,6 @@ import { Clock, MapPin, Zap, RefreshCw, Loader2, Share2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useShareResult } from './Engagement';
 import { ESPN_TO_TEAM } from '@/lib/espnMapping';
-
-// ── Round labels in Portuguese ──────────────────────────────────────
-const ROUND_LABELS: Record<string, string> = {
-  r32: '32 Avos',
-  r16: 'Oitavas',
-  qf: 'Quartas',
-  sf: 'Semifinal',
-  third_place: '3\u00B0 Lugar',
-  final: 'Final',
-};
 
 // ── Unified match format for LiveTab ───────────────────────────────
 interface DisplayMatch {
@@ -39,18 +28,7 @@ interface DisplayMatch {
   homeScore: number | null;
   awayScore: number | null;
   status: 'upcoming' | 'live' | 'finished';
-}
-
-function formatSlotLabel(slot: string): string {
-  if (slot.startsWith('V(')) {
-    const matchId = slot.slice(2, -1);
-    return `Vencedor ${matchId}`;
-  }
-  if (slot.startsWith('P(')) {
-    const matchId = slot.slice(2, -1);
-    return `Perdedor ${matchId}`;
-  }
-  return getSlotLabel(slot);
+  liveMinute?: number;
 }
 
 /** Animated score component — pulses when score changes */
@@ -82,7 +60,7 @@ function AnimatedScore({ score }: { score: number }) {
 }
 
 export default function LiveTab() {
-  const { matches, bracket, timezone, liveMatches, knockoutLiveInfo, rawKnockoutEvents, refreshNow, lastError } = useWorldCupStore();
+  const { matches, timezone, liveMatches, rawKnockoutEvents, refreshNow, lastError } = useWorldCupStore();
   const { poll, lastPollTime, fastMode, toggleFastMode, isRefreshing } = useLiveScores();
   const [initialLoading, setInitialLoading] = useState(true);
   const share = useShareResult();
@@ -116,76 +94,53 @@ export default function LiveTab() {
       });
     }
 
-    // 2) Knockout bracket matches
-    if (bracket) {
-      const allKnockout = [
-        ...bracket.r32,
-        ...bracket.r16,
-        ...bracket.qf,
-        ...bracket.sf,
-        bracket.thirdPlace,
-        bracket.final,
-      ] as const;
+    // 2) Knockout matches — ONLY from ESPN raw data (primary source of truth)
+    //    Bracket resolver data is NOT used here because it may have wrong R32 matchups.
+    const seenKOPairs = new Set<string>();
+    for (const evt of rawKnockoutEvents) {
+      // Skip placeholder entries (e.g. "Round of 32 5 Winner")
+      if (evt.homeName.includes('Winner') || evt.awayName.includes('Winner')) continue;
 
-      // Track which raw events were matched to bracket entries
-      const matchedAbbrPairs = new Set<string>();
+      const homeId = ESPN_TO_TEAM[evt.homeAbbr];
+      const awayId = ESPN_TO_TEAM[evt.awayAbbr];
+      const pairKey = (homeId && awayId) ? [homeId, awayId].sort().join(':') : `raw-${evt.homeAbbr}-${evt.awayAbbr}`;
+      if (seenKOPairs.has(pairKey)) continue;
+      seenKOPairs.add(pairKey);
 
-      for (const m of allKnockout) {
-        const koInfo = knockoutLiveInfo[m.id];
-        const hasResult = m.homeScore !== null && m.awayScore !== null;
-        list.push({
-          id: m.id,
-          homeTeamId: m.homeTeam,
-          awayTeamId: m.awayTeam,
-          homeLabel: m.homeTeam ? getTeamName(m.homeTeam) : formatSlotLabel(m.homeSlot),
-          awayLabel: m.awayTeam ? getTeamName(m.awayTeam) : formatSlotLabel(m.awaySlot),
-          date: m.date,
-          time: m.time,
-          venue: m.venue,
-          city: m.city,
-          roundLabel: ROUND_LABELS[m.round] || m.round,
-          homeScore: koInfo?.homeScore ?? m.homeScore,
-          awayScore: koInfo?.awayScore ?? m.awayScore,
-          status: koInfo?.status ?? (hasResult ? 'finished' : 'upcoming'),
-        });
+      const status = classifyESPNStatus(evt.statusName);
+      const hasScore = status === 'live' || status === 'finished';
+      const evtTime = evt.time || '12:00';
 
-        // Track matched pairs to avoid duplicates from raw fallback
-        if (m.homeTeam && m.awayTeam) {
-          matchedAbbrPairs.add([m.homeTeam, m.awayTeam].sort().join(':'));
-        }
-      }
+      // Parse round label from ESPN altGameNote
+      const note = evt.altGameNote || '';
+      let roundLabel = 'Mata-mata';
+      if (note.includes('Round of 32')) roundLabel = '32 Avos';
+      else if (note.includes('Round of 16')) roundLabel = 'Oitavas';
+      else if (note.includes('Quarterfinal')) roundLabel = 'Quartas';
+      else if (note.includes('Semifinal')) roundLabel = 'Semifinal';
+      else if (note.includes('Third Place') || note.includes('3rd')) roundLabel = '3\u00B0 Lugar';
+      else if (note.includes('Final')) roundLabel = 'Final';
 
-      // 3) Fallback: show raw ESPN knockout events that weren't matched to bracket
-      // This ensures live/upcoming knockout matches always appear even if bracket resolution fails
-      for (const evt of rawKnockoutEvents) {
-        const homeId = ESPN_TO_TEAM[evt.homeAbbr];
-        const awayId = ESPN_TO_TEAM[evt.awayAbbr];
-        const pairKey = (homeId && awayId) ? [homeId, awayId].sort().join(':') : null;
-        if (pairKey && matchedAbbrPairs.has(pairKey)) continue; // Already shown via bracket
-
-        const status = classifyESPNStatus(evt.statusName);
-        const hasScore = status === 'live' || status === 'finished';
-
-        list.push({
-          id: `espn-${evt.homeAbbr}-${evt.awayAbbr}`,
-          homeTeamId: homeId ?? null,
-          awayTeamId: awayId ?? null,
-          homeLabel: evt.homeName,
-          awayLabel: evt.awayName,
-          date: evt.date || '',
-          time: evt.time || '',
-          venue: evt.venue || '',
-          city: evt.city || '',
-          roundLabel: 'Mata-mata',
-          homeScore: hasScore ? (parseInt(evt.homeScore, 10) || null) : null,
-          awayScore: hasScore ? (parseInt(evt.awayScore, 10) || null) : null,
-          status,
-        });
-      }
+      list.push({
+        id: `espn-ko-${evt.homeAbbr}-${evt.awayAbbr}`,
+        homeTeamId: homeId ?? null,
+        awayTeamId: awayId ?? null,
+        homeLabel: evt.homeName,
+        awayLabel: evt.awayName,
+        date: evt.date || '',
+        time: evtTime,
+        venue: evt.venue || '',
+        city: evt.city || '',
+        roundLabel,
+        homeScore: hasScore ? (parseInt(evt.homeScore, 10) || null) : null,
+        awayScore: hasScore ? (parseInt(evt.awayScore, 10) || null) : null,
+        status,
+        liveMinute: status === 'live' && evt.clock ? Math.floor(evt.clock / 60) : undefined,
+      });
     }
 
     return list;
-  }, [matches, bracket, knockoutLiveInfo, rawKnockoutEvents]);
+  }, [matches, rawKnockoutEvents]);
 
   // ── Classify into live / upcoming / finished ────────────────────
   const { liveList, nextUpList, recentList } = useMemo(() => {
@@ -364,7 +319,7 @@ export default function LiveTab() {
                 awayLabel={m.awayLabel}
                 homeScore={m.homeScore}
                 awayScore={m.awayScore}
-                minute={liveMatches[m.id] ?? 0}
+                minute={m.liveMinute ?? liveMatches[m.id] ?? 0}
                 venue={m.venue}
                 city={m.city}
                 roundLabel={m.roundLabel}
