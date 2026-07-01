@@ -14,12 +14,12 @@ import type { KnockoutMatch } from '@/data/types';
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
-const RH = 54; // row height in px (16 rows for R32 base)
+const RH = 62; // row height in px (16 rows for R32 base)
 const ROWS = 16;
-const TOTAL_H = ROWS * RH; // 864px
-const COL_W = 216; // wider columns for better readability
-const CONN_W = 40;
-const CARD_H = 58; // match card height (increased for readability)
+const TOTAL_H = ROWS * RH; // 992px
+const COL_W = 248; // wider columns for better readability
+const CONN_W = 44;
+const CARD_H = 72; // match card height (increased for readability)
 
 const GOLD = '#D4AF37';
 const GOLD_MID = 'rgba(212,175,55,0.50)';
@@ -115,16 +115,12 @@ function enrichMatch(
     status = 'finished';
   }
 
-  // For R32: only use ESPN-confirmed teams, NOT bracket resolver predictions.
-  // For R16+: bracket resolver correctly computes from actual match results.
+  // Use ESPN-confirmed teams when available; fall back to bracket resolver.
+  // The bracket resolver already returns null for incomplete groups,
+  // so this is safe for all rounds including R32.
   const confirmed = espnTeams[m.id];
-  const isR32 = m.round === 'r32';
-  const homeTeamId = isR32
-    ? (confirmed ? confirmed.homeTeam : null)
-    : (confirmed ? confirmed.homeTeam : m.homeTeam);
-  const awayTeamId = isR32
-    ? (confirmed ? confirmed.awayTeam : null)
-    : (confirmed ? confirmed.awayTeam : m.awayTeam);
+  const homeTeamId = confirmed ? confirmed.homeTeam : m.homeTeam;
+  const awayTeamId = confirmed ? confirmed.awayTeam : m.awayTeam;
 
   return {
     id: m.id,
@@ -208,16 +204,16 @@ function ConnectorLines({
     const ymid = centerY(j, toCount);
 
     paths.push(
-      <g key={j} opacity={0.7}>
+      <g key={j} opacity={0.8}>
         {/* Left horizontal lines from each feeder */}
-        <line x1={0} y1={y1} x2={mx} y2={y1} stroke={GOLD_MID} strokeWidth={1.5} strokeDasharray="6 3" />
-        <line x1={0} y1={y2} x2={mx} y2={y2} stroke={GOLD_MID} strokeWidth={1.5} strokeDasharray="6 3" />
+        <line x1={0} y1={y1} x2={mx} y2={y1} stroke={GOLD_MID} strokeWidth={2} strokeDasharray="6 3" />
+        <line x1={0} y1={y2} x2={mx} y2={y2} stroke={GOLD_MID} strokeWidth={2} strokeDasharray="6 3" />
         {/* Vertical connector between feeders */}
-        <line x1={mx} y1={y1} x2={mx} y2={y2} stroke={GOLD_MID} strokeWidth={1.5} strokeDasharray="6 3" />
+        <line x1={mx} y1={y1} x2={mx} y2={y2} stroke={GOLD_MID} strokeWidth={2} strokeDasharray="6 3" />
         {/* Right horizontal line to target match */}
-        <line x1={mx} y1={ymid} x2={CONN_W} y2={ymid} stroke={GOLD_MID} strokeWidth={1.5} strokeDasharray="6 3" />
+        <line x1={mx} y1={ymid} x2={CONN_W} y2={ymid} stroke={GOLD_MID} strokeWidth={2} strokeDasharray="6 3" />
         {/* Junction dot */}
-        <circle cx={mx} cy={ymid} r={2.5} fill={GOLD} opacity={0.8} />
+        <circle cx={mx} cy={ymid} r={3} fill={GOLD} opacity={0.8} />
       </g>,
     );
   }
@@ -250,30 +246,30 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
     <div
       className={cn(
         'rounded-lg border transition-all overflow-hidden',
-        isFinal ? 'p-2.5' : 'p-2',
+        isFinal ? 'p-3' : 'p-2.5',
         isLive && 'bg-red-950/30 border-red-500/50 live-glow',
         isFinished && hasScore && !isLive && 'bg-card border-fifa-gold/40',
         !isLive && !isFinished && 'bg-card/80 border-border/60',
-        !hasTeams && 'opacity-40',
+        !hasTeams && 'opacity-70',
         isFinal && isFinished && hasScore && 'ring-1 ring-fifa-gold/30',
       )}
     >
       {/* Home team row */}
-      <div className="flex items-center gap-1.5" style={{ height: isFinal ? 24 : 20 }}>
+      <div className="flex items-center gap-2" style={{ height: isFinal ? 28 : 24 }}>
         {match.homeTeamId ? (
-          <FlagIcon teamId={match.homeTeamId} size={isFinal ? 24 : 18} />
+          <FlagIcon teamId={match.homeTeamId} size={isFinal ? 26 : 22} />
         ) : (
-          <div className="w-[18px] h-[18px] flex-shrink-0 rounded bg-muted flex items-center justify-center">
-            <span className="text-[10px] text-muted-foreground font-bold">?</span>
+          <div className="w-[22px] h-[22px] flex-shrink-0 rounded bg-muted flex items-center justify-center">
+            <span className="text-xs text-muted-foreground font-bold">?</span>
           </div>
         )}
         <span
           className={cn(
             'flex-1 truncate leading-tight',
-            isFinal ? 'text-sm' : 'text-xs',
+            isFinal ? 'text-sm' : 'text-[13px]',
             isFinished && homeWinner && 'text-fifa-green font-bold',
-            !isFinished && match.homeTeamId && 'text-foreground font-medium',
-            !match.homeTeamId && 'text-muted-foreground italic text-[11px]',
+            !isFinished && match.homeTeamId && 'text-foreground font-semibold',
+            !match.homeTeamId && 'text-muted-foreground italic text-xs',
             isLive && match.homeTeamId && 'text-white',
           )}
         >
@@ -282,8 +278,8 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
         {hasScore && (
           <span
             className={cn(
-              'font-bold tabular-nums min-w-[16px] text-right',
-              isFinal ? 'text-base' : 'text-xs',
+              'font-bold tabular-nums min-w-[18px] text-right',
+              isFinal ? 'text-base' : 'text-[13px]',
               isFinished && homeWinner && 'text-fifa-green',
               isLive && 'text-white',
             )}
@@ -297,21 +293,21 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
       <div className="border-t border-border/30 my-0.5" />
 
       {/* Away team row */}
-      <div className="flex items-center gap-1.5" style={{ height: isFinal ? 24 : 20 }}>
+      <div className="flex items-center gap-2" style={{ height: isFinal ? 28 : 24 }}>
         {match.awayTeamId ? (
-          <FlagIcon teamId={match.awayTeamId} size={isFinal ? 24 : 18} />
+          <FlagIcon teamId={match.awayTeamId} size={isFinal ? 26 : 22} />
         ) : (
-          <div className="w-[18px] h-[18px] flex-shrink-0 rounded bg-muted flex items-center justify-center">
-            <span className="text-[10px] text-muted-foreground font-bold">?</span>
+          <div className="w-[22px] h-[22px] flex-shrink-0 rounded bg-muted flex items-center justify-center">
+            <span className="text-xs text-muted-foreground font-bold">?</span>
           </div>
         )}
         <span
           className={cn(
             'flex-1 truncate leading-tight',
-            isFinal ? 'text-sm' : 'text-xs',
+            isFinal ? 'text-sm' : 'text-[13px]',
             isFinished && awayWinner && 'text-fifa-green font-bold',
-            !isFinished && match.awayTeamId && 'text-foreground font-medium',
-            !match.awayTeamId && 'text-muted-foreground italic text-[11px]',
+            !isFinished && match.awayTeamId && 'text-foreground font-semibold',
+            !match.awayTeamId && 'text-muted-foreground italic text-xs',
             isLive && match.awayTeamId && 'text-white',
           )}
         >
@@ -320,8 +316,8 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
         {hasScore && (
           <span
             className={cn(
-              'font-bold tabular-nums min-w-[16px] text-right',
-              isFinal ? 'text-base' : 'text-xs',
+              'font-bold tabular-nums min-w-[18px] text-right',
+              isFinal ? 'text-base' : 'text-[13px]',
               isFinished && awayWinner && 'text-fifa-green',
               isLive && 'text-white',
             )}
@@ -334,8 +330,8 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
       {/* Status indicators */}
       {isLive && (
         <div className="flex items-center gap-1 mt-1" role="status" aria-label={`Ao vivo, minuto ${match.liveMinute ?? 0}`}>
-          <Radio className="w-3 h-3 text-red-400 animate-pulse" />
-          <span className="text-[11px] font-bold text-red-400 tracking-wide">
+          <Radio className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+          <span className="text-xs font-bold text-red-400 tracking-wide">
             {match.liveMinute && match.liveMinute > 0 ? `${match.liveMinute}'` : 'AO VIVO'}
             {match.displayClock && (
               <span className="ml-1 text-red-400/60">{match.displayClock}</span>
@@ -345,7 +341,7 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
       )}
 
       {isPenalty && (
-        <div className="text-[11px] text-fifa-gold mt-0.5 font-semibold text-center tracking-wide">
+        <div className="text-xs text-fifa-gold mt-0.5 font-semibold text-center tracking-wide">
           PEN {match.penaltyHome}&ndash;{match.penaltyAway}
         </div>
       )}
@@ -353,21 +349,21 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
       {isFinished && !isLive && !isFinal && (
         <div className="flex items-center gap-1 mt-0.5 text-muted-foreground/60">
           <CheckCircle2 className="w-3 h-3" />
-          <span className="text-[11px]">Encerrado</span>
+          <span className="text-xs">Encerrado</span>
         </div>
       )}
 
       {/* Date + venue for all cards */}
       {!isFinal && match.date && (
         <div className="flex items-center gap-1 mt-1 text-muted-foreground/70">
-          <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-          <span className="text-[10px] truncate">{fmtDate(match.date)} &middot; {match.city}</span>
+          <MapPin className="w-3 h-3 flex-shrink-0" />
+          <span className="text-[11px] truncate">{fmtDate(match.date)} &middot; {match.city}</span>
         </div>
       )}
 
       {/* Final venue (larger) */}
       {isFinal && (
-        <div className="text-[11px] text-muted-foreground mt-1 text-center truncate">
+        <div className="text-xs text-muted-foreground mt-1 text-center truncate">
           {match.venue} &middot; {match.city}
         </div>
       )}
@@ -412,8 +408,8 @@ function RoundColumn({
   return (
     <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
       {/* Round label */}
-      <div className="h-8 flex items-center justify-center mb-1">
-        <span className="text-xs font-bold tracking-[0.2em] text-fifa-gold uppercase">
+      <div className="h-9 flex items-center justify-center mb-1">
+        <span className="text-[13px] font-bold tracking-[0.2em] text-fifa-gold uppercase">
           {title}
         </span>
       </div>
@@ -452,8 +448,8 @@ function SingleMatchColumn({
   const cy = centerY(matchIndex, totalSlots);
   return (
     <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
-      <div className="h-8 flex items-center justify-center mb-1">
-        <span className="text-xs font-bold tracking-[0.2em] text-fifa-gold uppercase">
+      <div className="h-9 flex items-center justify-center mb-1">
+        <span className="text-[13px] font-bold tracking-[0.2em] text-fifa-gold uppercase">
           {label}
         </span>
       </div>
@@ -478,7 +474,7 @@ function DesktopBracket(data: {
 
   return (
     <div
-      className="min-w-[1420px] overflow-x-auto"
+      className="min-w-[1600px] overflow-x-auto"
       role="region"
       aria-label="Chaveamento visual mata-mata"
     >
@@ -509,8 +505,8 @@ function DesktopBracket(data: {
 
         {/* SF + Trophy + 3rd Place */}
         <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W + 10 }}>
-          <div className="h-8 flex items-center justify-center mb-1">
-            <span className="text-xs font-bold tracking-[0.2em] text-fifa-gold uppercase">
+          <div className="h-9 flex items-center justify-center mb-1">
+            <span className="text-[13px] font-bold tracking-[0.2em] text-fifa-gold uppercase">
               SEMIFINAIS
             </span>
           </div>
@@ -539,7 +535,7 @@ function DesktopBracket(data: {
               className="absolute w-full"
               style={{ top: TOTAL_H - CARD_H - 12 }}
             >
-              <div className="text-xs font-bold text-fifa-gold/60 text-center mb-1 tracking-wider uppercase">
+              <div className="text-[13px] font-bold text-fifa-gold/60 text-center mb-1 tracking-wider uppercase">
                 3\u00B0 Lugar
               </div>
               <MatchCard match={thirdPlace} />
@@ -554,8 +550,8 @@ function DesktopBracket(data: {
 
         {/* Final */}
         <div className="flex-shrink-0 flex flex-col items-center" style={{ width: COL_W }}>
-          <div className="h-8 flex items-center justify-center mb-1">
-            <span className="text-xs font-bold tracking-[0.2em] text-fifa-gold uppercase">
+          <div className="h-9 flex items-center justify-center mb-1">
+            <span className="text-[13px] font-bold tracking-[0.2em] text-fifa-gold uppercase">
               FINAL
             </span>
           </div>
@@ -696,10 +692,10 @@ function MobileRoundSection({
   return (
     <div className="rounded-xl border border-border/50 overflow-hidden">
       <div className="bg-fifa-gold/10 px-4 py-2.5 border-b border-border/40">
-        <span className="text-xs font-bold tracking-[0.15em] text-fifa-gold uppercase">
+        <span className="text-[13px] font-bold tracking-[0.15em] text-fifa-gold uppercase">
           {title}
         </span>
-        <span className="text-[11px] text-muted-foreground ml-2">({matches.length} jogos)</span>
+        <span className="text-xs text-muted-foreground ml-2">({matches.length} jogos)</span>
       </div>
       <div className="max-h-96 overflow-y-auto scrollbar-thin">
         {matches.map((m) => (
@@ -736,8 +732,8 @@ function MobileBracket(data: {
       {/* Decisoes: 3rd place + Final */}
       <div className="rounded-xl border border-fifa-gold/20 overflow-hidden">
         <div className="bg-fifa-gold/15 px-4 py-2.5 border-b border-border/40">
-          <span className="text-xs font-bold tracking-[0.15em] text-fifa-gold uppercase">
-            Decis\u00F5es
+          <span className="text-[13px] font-bold tracking-[0.15em] text-fifa-gold uppercase">
+            Decisões
           </span>
         </div>
         <div>
@@ -784,7 +780,7 @@ export default function VisualBracket() {
           <Trophy className="w-5 h-5 text-fifa-gold" />
           <Star className="w-4 h-4 text-fifa-gold opacity-70" />
         </div>
-        <p className="text-[11px] text-muted-foreground mt-1 tracking-wide">
+        <p className="text-xs text-muted-foreground mt-1 tracking-wide">
           FIFA World Cup 2026 &mdash; Chaveamento Eliminat&oacute;rio
         </p>
       </div>
