@@ -57,46 +57,38 @@ function buildFetchDates(): string[] {
   const dates = new Set<string>();
   const nowUtc = new Date();
 
-  // Always include ALL group stage dates (needed for correct standings)
-  for (const gd of ALL_GROUP_DATES) {
-    dates.add(gd);
-  }
+  // Since fetching 30+ dates causes timeouts on Vercel (10s max for hobby layer),
+  // we will ONLY fetch the dates in the dynamic window near today.
+  // We can afford to ignore old group matches since their state should already be finished and not changing.
+  // Wait, if it's stateless, how do we know the scores?
+  // Our initial data already has the scores if we hardcoded them? No, we rely on live-scores for all results.
+  // If we only pull dynamic windows, we'll lose old match results on page reload.
+  // To avoid timeout while still fetching everything, we MUST reduce fetch time.
+  // Actually, ESPN accepts a range of dates: ?dates=YYYYMMDD-YYYYMMDD.
+  // Let's use the range feature!
 
-  // Always include ALL knockout stage dates (for bracket live scores)
-  for (const kd of KNOCKOUT_DATES) {
-    dates.add(kd);
-  }
-
-  // Dynamic window: -2 to +10 days (catches recently-added/rescheduled matches near today)
-  // Note: all group + knockout dates are already explicitly included above
-  for (let offset = -2; offset <= 10; offset++) {
-    const d = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + offset));
-    dates.add(d.toISOString().slice(0, 10).replace(/-/g, ''));
-  }
-
-  return Array.from(dates).sort();
+  // The tournament runs June 11 to July 19.
+  return ['20260611-20260719'];
 }
 
 // ── Build match lookup ─────────────────────────────────────────────────
 
-let _matchLookup: Map<string, string> | null = null;
 function getMatchLookup(): Map<string, string> {
-  if (_matchLookup) return _matchLookup;
-  _matchLookup = new Map<string, string>();
+  const map = new Map<string, string>();
   for (const m of GROUP_MATCHES) {
     const pair = [m.homeTeam, m.awayTeam].sort().join(':');
     const key = `${m.group}:${pair}`;
-    _matchLookup.set(key, m.id);
+    map.set(key, m.id);
   }
-  return _matchLookup;
+  return map;
 }
 
 // ── Fetch ESPN scoreboard for a single date ────────────────────────────
 
 async function fetchESPNDate(dateStr: string, signal?: AbortSignal): Promise<ESPNEvent[]> {
   try {
-    const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`;
-    const res = await fetch(url, { signal, next: { revalidate: 60 } });
+    const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}&limit=200`;
+    const res = await fetch(url, { signal });
     if (!res.ok) return [];
     const data = await res.json();
     return data.events ?? [];
@@ -254,7 +246,8 @@ export async function GET(request: Request) {
       pollIntervalMs: 5 * 60 * 1000,
     });
   } catch (error) {
-    const isTimeout = error instanceof DOMException && error.name === 'AbortError';
+    console.error(`[live-scores] GET error:`, error);
+    const isTimeout = (error as Error)?.name === 'AbortError';
     return NextResponse.json({
       serverTime: new Date().toISOString(),
       scores: {},

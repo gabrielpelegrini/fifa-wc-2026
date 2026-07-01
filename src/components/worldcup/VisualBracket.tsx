@@ -46,6 +46,7 @@ interface MatchDisplay {
   liveMinute?: number;
   displayClock?: string;
   date: string;
+  time: string;
   venue: string;
   city: string;
 }
@@ -89,10 +90,28 @@ function getWinners(match: MatchDisplay): { homeWinner: boolean; awayWinner: boo
   return { homeWinner, awayWinner };
 }
 
-/** Format ISO date as DD/MM */
+/** Format ISO date as DD/MM in PT-BR */
 function fmtDate(iso: string): string {
+  if (!iso) return '';
   const p = iso.split('-');
   return p.length === 3 ? `${p[2]}/${p[1]}` : iso.slice(5);
+}
+
+/** Format time correctly considering timezone. */
+function fmtTime(utcTime: string, timezone: string): string {
+  if (!utcTime) return '';
+  try {
+    const [h, m] = utcTime.split(':').map(Number);
+    const date = new Date(Date.UTC(2026, 0, 1, h, m));
+    return date.toLocaleTimeString('pt-BR', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return utcTime;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -139,6 +158,7 @@ function enrichMatch(
     liveMinute: liveMatches[m.id],
     displayClock: live?.displayClock,
     date: m.date,
+    time: m.time,
     venue: m.venue,
     city: m.city,
   };
@@ -357,7 +377,9 @@ function MatchCard({ match, isFinal = false }: { match: MatchDisplay; isFinal?: 
       {!isFinal && match.date && (
         <div className="flex items-center gap-1 mt-1 text-muted-foreground/70">
           <MapPin className="w-3 h-3 flex-shrink-0" />
-          <span className="text-[11px] truncate">{fmtDate(match.date)} &middot; {match.city}</span>
+          <span className="text-[11px] truncate">
+            {fmtDate(match.date)}{match.time ? ` ${fmtTime(match.time, 'America/Sao_Paulo')}` : ''} &middot; {match.city}
+          </span>
         </div>
       )}
 
@@ -654,7 +676,14 @@ function MobileMatchRow({ match, highlight = false }: { match: MatchDisplay; hig
               </span>
             </div>
           ) : (
-            <span className="text-[11px] text-muted-foreground">{fmtDate(match.date)}</span>
+            <div className="flex flex-col items-center leading-tight">
+              <span className="text-[11px] text-muted-foreground">{fmtDate(match.date)}</span>
+              {match.time && (
+                <span className="text-[10px] text-muted-foreground/70">
+                  {fmtTime(match.time, 'America/Sao_Paulo')}
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -750,7 +779,7 @@ function MobileBracket(data: {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function VisualBracket() {
-  const { bracket, knockoutLiveInfo, liveMatches, espnBracketTeams } = useWorldCupStore();
+  const { bracket, knockoutLiveInfo, liveMatches, espnBracketTeams, timezone } = useWorldCupStore();
 
   const data = useMemo(() => {
     if (!bracket) return null;
