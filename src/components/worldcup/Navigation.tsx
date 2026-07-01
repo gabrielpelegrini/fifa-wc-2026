@@ -2,7 +2,7 @@
 
 import { useWorldCupStore } from '@/store/worldCupStore';
 import { cn } from '@/lib/utils';
-import { Calendar, Trophy, GitBranch, Moon, Sun, Radio, RefreshCw, LayoutGrid } from 'lucide-react';
+import { Calendar, Trophy, GitBranch, Moon, Sun, Radio, RefreshCw, LayoutGrid, BarChart3 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 const TABS = [
@@ -11,6 +11,7 @@ const TABS = [
   { id: 'groups', label: 'Grupos', icon: Trophy },
   { id: 'bracket', label: 'Mata-mata', icon: GitBranch },
   { id: 'visual', label: 'Chave', icon: LayoutGrid },
+  { id: 'stats', label: 'Estatisticas', icon: BarChart3 },
 ];
 
 export default function Navigation() {

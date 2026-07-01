@@ -132,16 +132,10 @@ function enrichBracket(
     const live = knockoutLiveInfo[m.id];
     const hasLive = live && (live.status === 'live' || live.status === 'finished');
     const confirmed = espnTeams[m.id];
-    // For R32: only show ESPN-confirmed teams, NOT bracket resolver predictions.
-    // Predictions can be wrong if group data is incomplete or bracket config differs from FIFA.
-    // For R16+: bracket resolver correctly computes from actual match results.
-    const isR32 = m.round === 'r32';
-    const homeTeam = isR32
-      ? (confirmed ? confirmed.homeTeam : null)
-      : (confirmed ? confirmed.homeTeam : m.homeTeam);
-    const awayTeam = isR32
-      ? (confirmed ? confirmed.awayTeam : null)
-      : (confirmed ? confirmed.awayTeam : m.awayTeam);
+    // Use ESPN-confirmed teams when available; fall back to bracket resolver.
+    // The bracket resolver already returns null for incomplete groups.
+    const homeTeam = confirmed ? confirmed.homeTeam : m.homeTeam;
+    const awayTeam = confirmed ? confirmed.awayTeam : m.awayTeam;
     return {
       id: m.id,
       round: m.round,
