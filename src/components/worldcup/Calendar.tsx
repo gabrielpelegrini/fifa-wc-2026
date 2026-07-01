@@ -41,7 +41,7 @@ export default function Calendar() {
     matches, timezone,
     filterGroup, filterTeam, filterRound,
     setFilterGroup, setFilterTeam, setFilterRound,
-    liveMatches, rawKnockoutEvents, bracket, knockoutLiveInfo,
+    liveMatches, rawKnockoutEvents, bracket, knockoutLiveInfo, espnBracketTeams,
   } = useWorldCupStore();
 
   // Build unified match list: group + knockout
@@ -105,9 +105,15 @@ export default function Calendar() {
     }
 
     // 3) Bracket knockout matches (SUPPLEMENT — only for slots not covered by ESPN)
+    //    For R32: only include matches that have ESPN-confirmed teams (no predictions)
+    //    For R16+: include all (bracket resolver correctly computes from match results)
     if (bracket) {
+
       const koMatches = [...bracket.r32, ...bracket.r16, ...bracket.qf, ...bracket.sf, bracket.thirdPlace, bracket.final];
       for (const m of koMatches) {
+        // For R32: skip if no ESPN-confirmed teams (would show wrong predictions)
+        if (m.round === 'r32' && !espnBracketTeams[m.id]) continue;
+        
         // Skip if ESPN already has this team pair
         if (m.homeTeam && m.awayTeam) {
           const key = [m.homeTeam, m.awayTeam].sort().join(':');
@@ -133,7 +139,7 @@ export default function Calendar() {
     }
 
     return list;
-  }, [matches, bracket, knockoutLiveInfo, rawKnockoutEvents, liveMatches]);
+  }, [matches, bracket, knockoutLiveInfo, rawKnockoutEvents, liveMatches, espnBracketTeams]);
 
   // Compute the user-local date for each match (converts UTC date+time → user timezone)
   const matchLocalDates = useMemo(() => {

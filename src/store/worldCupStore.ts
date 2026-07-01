@@ -6,7 +6,6 @@ import { calculateThirdPlaceRanking } from '@/lib/thirdPlaceRanking';
 import { resolveBracket } from '@/lib/bracketResolver';
 import { ESPN_TO_TEAM } from '@/lib/espnMapping';
 import { classifyESPNStatus } from '@/lib/espnStatus';
-import { THIRD_PLACE_POOLS } from '@/data/worldcup';
 
 interface KnockoutResult {
   home: number;
@@ -75,38 +74,6 @@ function computeAll(matches: MatchDef[], knockoutResults: Map<string, KnockoutRe
   const thirdPlaceRanking = calculateThirdPlaceRanking(allStandings, matches);
   const bracket = resolveBracket(allStandings, thirdPlaceRanking, knockoutResults);
   return { allStandings, thirdPlaceRanking, bracket };
-}
-
-/** Get all possible team IDs that could fill a bracket slot */
-function getPossibleTeams(
-  slot: string,
-  allStandings: Map<string, TeamStanding[]>
-): Set<string> {
-  const m1 = slot.match(/^1([A-L])$/);
-  if (m1) {
-    const sts = allStandings.get(m1[1]);
-    return sts ? new Set(sts.map(s => s.teamId)) : new Set();
-  }
-  const m2 = slot.match(/^2([A-L])$/);
-  if (m2) {
-    const sts = allStandings.get(m2[1]);
-    return sts ? new Set(sts.map(s => s.teamId)) : new Set();
-  }
-  const m3 = slot.match(/^3_([A-L]+)$/);
-  if (m3) {
-    const pool = THIRD_PLACE_POOLS[slot as keyof typeof THIRD_PLACE_POOLS];
-    if (!pool) return new Set();
-    const teams = new Set<string>();
-    for (const g of pool.groups) {
-      const sts = allStandings.get(g);
-      if (sts) {
-        const third = sts.find(s => s.position === 3);
-        if (third) teams.add(third.teamId);
-      }
-    }
-    return teams;
-  }
-  return new Set();
 }
 
 export const useWorldCupStore = create<WorldCupState>((set, get) => {
@@ -362,18 +329,19 @@ export const useWorldCupStore = create<WorldCupState>((set, get) => {
       }
 
       // Helper: try to match an ESPN event to an unmatched bracket entry
+      // STRICT: only match when both ESPN teams align with the bracket's resolved teams.
+      // Previously used getPossibleTeams (all teams in a group) which was too loose
+      // and caused wrong matchups (e.g., assigning any group team to a winner slot).
       function tryDateMatch(evtDate: string, homeId: string, awayId: string) {
         const candidates = dateToUnmatched.get(evtDate);
         if (!candidates) return;
         for (const entry of candidates) {
           if (usedIds.has(entry.id)) continue;
-          const homePossible = getPossibleTeams(entry.homeSlot, allStandings);
-          const awayPossible = getPossibleTeams(entry.awaySlot, allStandings);
-          const homeFits = homeId === entry.homeTeam || homeId === entry.awayTeam ||
-            (entry.homeTeam === null && homePossible.has(homeId));
-          const awayFits = awayId === entry.homeTeam || awayId === entry.awayTeam ||
-            (entry.awayTeam === null && awayPossible.has(awayId));
-          if ((homeFits && awayFits) || (homeFits && awayId === entry.awayTeam) || (awayFits && homeId === entry.homeTeam)) {
+          // Both teams must match the bracket's resolved teams (order-independent)
+          const teamsMatch =
+            (homeId === entry.homeTeam && awayId === entry.awayTeam) ||
+            (homeId === entry.awayTeam && awayId === entry.homeTeam);
+          if (teamsMatch) {
             return entry;
           }
         }
